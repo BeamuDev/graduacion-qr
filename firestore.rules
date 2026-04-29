@@ -1,0 +1,27 @@
+// =============================================================
+//  Reglas de seguridad Firestore
+//  Pega esto en: Consola Firebase → Firestore Database → Reglas
+// =============================================================
+//
+//  Política:
+//   - Solo usuarios autenticados (admin o personal de puerta)
+//     pueden leer y escribir entradas.
+//   - Quien no esté logueado no ve nada.
+//
+//  Si quisieras más adelante separar roles (admin vs scanner),
+//  habría que activar Custom Claims con la Admin SDK.
+//
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /entradas/{codigo} {
+      allow read, create, update, delete: if request.auth != null;
+    }
+
+    // Bloquea cualquier otra colección por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
