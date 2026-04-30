@@ -23,3 +23,19 @@ window.NOMBRE_EVENTO = "Graduación 2026 · IES Aldebarán";
 // al panel de admin. Tiene que coincidir con el email puesto en las
 // reglas de Firestore (función esAdmin).
 window.ADMIN_EMAIL = "admin@graduacion.es";
+
+// =============================================================
+//  Datos del evento (aparecen en el PDF de las entradas)
+// =============================================================
+//  Cuando el centro te confirme fecha y hora, edita estos valores.
+//  Mientras estén en "Por confirmar" se imprimen en la entrada con
+//  un estilo "pendiente" para que se vea claro que aún falta.
+window.FECHA_EVENTO = "Por confirmar";   // ej: "Sábado 27 de junio de 2026"
+window.HORA_EVENTO  = "Por confirmar";   // ej: "19:30 h"
+window.LUGAR_EVENTO = "Salón de actos del centro";
+
+// Ruta del logo del centro (relativa al HTML).
+// Si dejas el placeholder o el archivo no existe, se dibuja un
+// recuadro con las siglas del centro en su lugar.
+window.LOGO_URL    = "logo.png";
+window.SIGLAS_IES  = "IES";   // siglas que se ven si no hay logo
