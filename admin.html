@@ -118,8 +118,21 @@
     signOut(auth);
   });
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
+      // Comprobar que el email coincide con el admin configurado
+      const adminEmail = (window.ADMIN_EMAIL || "").toLowerCase();
+      const userEmail  = (user.email || "").toLowerCase();
+      if (adminEmail && userEmail !== adminEmail) {
+        // No es admin: mostrar mensaje y cerrar sesión
+        hide($("vista-admin"));
+        show($("vista-login"));
+        $("login-error").innerHTML =
+          'Esta cuenta no tiene permisos de administraci&oacute;n.<br>' +
+          'Si vienes a escanear, usa la <a href="scan.html">p&aacute;gina del esc&aacute;ner</a>.';
+        await signOut(auth);
+        return;
+      }
       hide($("vista-login"));
       show($("vista-admin"));
       $("user-email").textContent = user.email;

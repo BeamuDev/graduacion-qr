@@ -4,19 +4,31 @@
 // =============================================================
 //
 //  Política:
-//   - Solo usuarios autenticados (admin o personal de puerta)
-//     pueden leer y escribir entradas.
+//   - Cualquier usuario autenticado (admin o personal de puerta)
+//     puede leer entradas y marcarlas como usadas.
+//   - SOLO el usuario admin (identificado por email) puede crear
+//     o borrar entradas.
 //   - Quien no esté logueado no ve nada.
 //
-//  Si quisieras más adelante separar roles (admin vs scanner),
-//  habría que activar Custom Claims con la Admin SDK.
+//  Para añadir más administradores, ampliar la función esAdmin().
+//  Para cambiar el email admin, edítalo en estas reglas Y en
+//  config.js (window.ADMIN_EMAIL).
 //
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Solo este email tiene permisos de admin
+    function esAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'admin@graduacion.es';
+    }
+
     match /entradas/{codigo} {
-      allow read, create, update, delete: if request.auth != null;
+      // Cualquier usuario logueado (admin o personal) puede leer y marcar usada
+      allow read, update: if request.auth != null;
+      // Solo el admin puede crear nuevas entradas o borrarlas
+      allow create, delete: if esAdmin();
     }
 
     // Bloquea cualquier otra colección por defecto
