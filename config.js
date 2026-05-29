@@ -25,17 +25,48 @@ window.NOMBRE_EVENTO = "Graduación 2026 · IES Aldebarán";
 window.ADMIN_EMAIL = "admin@graduacion.es";
 
 // =============================================================
-//  Datos del evento (aparecen en el PDF de las entradas)
+//  TEXTOS QUE APARECEN EN EL PDF DE LAS ENTRADAS
 // =============================================================
-//  Cuando el centro te confirme fecha y hora, edita estos valores.
-//  Mientras estén en "Por confirmar" se imprimen en la entrada con
-//  un estilo "pendiente" para que se vea claro que aún falta.
-window.FECHA_EVENTO = "Por confirmar";   // ej: "Sábado 27 de junio de 2026"
-window.HORA_EVENTO  = "Por confirmar";   // ej: "19:30 h"
-window.LUGAR_EVENTO = "Salón de actos del centro";
+//  Edita aquí lo que ponga cada entrada impresa. No hay que tocar
+//  el HTML. Usa **dobles asteriscos** para marcar partes en NEGRITA
+//  dentro del texto de invitación.
+// =============================================================
 
-// Ruta del logo del centro (relativa al HTML).
-// Si dejas el placeholder o el archivo no existe, se dibuja un
-// recuadro con las siglas del centro en su lugar.
-window.LOGO_URL    = "logo.png";
-window.SIGLAS_IES  = "IES";   // siglas que se ven si no hay logo
+// Logos institucionales que aparecen en el PDF.
+//  - LOGO_CLM_URL: escudo de Castilla-La Mancha → arriba a la IZQUIERDA
+//  - LOGO_IES_URL: logo del centro              → arriba a la DERECHA
+// Si alguno falta o falla al cargar, se cae con elegancia (placeholder o solo texto).
+window.LOGO_CLM_URL = "logo-clm.webp";
+window.LOGO_IES_URL = "logo.png";
+window.LOGO_URL     = window.LOGO_IES_URL;  // compatibilidad antigua
+window.SIGLAS_IES   = "IES";                // se dibuja si el logo falla
+
+// Cabecera arriba a la derecha (dos líneas)
+window.HEADER_CONSEJERIA = "Consejería de Educación, Cultura y Deportes";
+window.HEADER_CENTRO     = "I.E.S. Aldebarán";
+
+// Título grande centrado
+window.TITULO_PDF = "ACTO DE GRADUACIÓN 2026";
+
+// Texto de la invitación (justificado, en cursiva).
+// Marca con **...** las partes que quieras en negrita-cursiva.
+window.TEXTO_INVITACION =
+  "El **Claustro de Profesores del Centro** y los alumnos de " +
+  "**2º de Bachillerato y del CFGS en Administración de Sistemas Informáticos en Red** " +
+  "tienen el placer de invitarle al acto de Graduación, que tendrá lugar en la " +
+  "**Casa de la Cultura del Ayuntamiento de Fuensalida** el " +
+  "**viernes 15 de mayo de 2026, a las 19:00 horas**. " +
+  "Agradecemos de antemano su asistencia a este acto tan especial para nuestra comunidad educativa.";
+
+// Texto rotado en la matriz lateral izquierda
+window.STUB_TEXTO =
+  "Graduación de SEGUNDO DE BACHILLERATO y CFGS en ADMINISTRACIÓN DE SISTEMAS INFORMÁTICOS EN RED";
+
+// Etiquetas del pie de la entrada
+window.VALIDA_PARA = "(VÁLIDA PARA UNA PERSONA)";
+window.CATEGORIA   = "AUTORIDADES";   // ej: AUTORIDADES, FAMILIAS, INVITADOS
+
+// (Compatibilidad con versiones anteriores — no se usan en el PDF nuevo)
+window.FECHA_EVENTO = "viernes 15 de mayo de 2026";
+window.HORA_EVENTO  = "19:00 h";
+window.LUGAR_EVENTO = "Casa de la Cultura, Fuensalida";

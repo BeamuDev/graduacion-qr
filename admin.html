@@ -44,6 +44,80 @@
       <div class="stat"><div class="num" id="stat-usadas" style="color:#f87171;">0</div><div class="lbl">Usadas</div></div>
     </div>
 
+    <!-- Datos del evento (editables, sincronizados en Firestore) -->
+    <div class="card" id="card-config">
+      <h2>Datos del evento <span class="muted" style="font-weight:400; font-size:0.85rem;">(aparecen en el PDF)</span></h2>
+
+      <label for="cfg-titulo">Título del PDF</label>
+      <input id="cfg-titulo" type="text" placeholder="ACTO DE GRADUACIÓN 2026" />
+
+      <div class="grid-2">
+        <div>
+          <label for="cfg-instituto">Centro / Instituto</label>
+          <input id="cfg-instituto" type="text" placeholder="I.E.S. Aldebarán" />
+        </div>
+        <div>
+          <label for="cfg-consejeria">Cabecera (Consejería)</label>
+          <input id="cfg-consejeria" type="text" placeholder="Consejería de Educación, Cultura y Deportes" />
+        </div>
+      </div>
+
+      <label for="cfg-cursos">Cursos / Módulos</label>
+      <textarea id="cfg-cursos" rows="2" placeholder="2º de Bachillerato y del CFGS en Administración de Sistemas Informáticos en Red"></textarea>
+
+      <div class="grid-2">
+        <div>
+          <label for="cfg-fecha-picker">Fecha del evento</label>
+          <input id="cfg-fecha-picker" type="date" />
+          <input id="cfg-fecha" type="text" placeholder="viernes 15 de mayo de 2026" />
+        </div>
+        <div>
+          <label for="cfg-hora-picker">Hora</label>
+          <input id="cfg-hora-picker" type="time" />
+          <input id="cfg-hora" type="text" placeholder="19:00 horas" />
+        </div>
+      </div>
+
+      <label for="cfg-lugar">Lugar del evento</label>
+      <input id="cfg-lugar" type="text" placeholder="Casa de la Cultura del Ayuntamiento de Fuensalida" />
+
+      <div class="grid-2">
+        <div>
+          <label for="cfg-categoria">Categoría de las entradas</label>
+          <input id="cfg-categoria" type="text" placeholder="AUTORIDADES" />
+        </div>
+        <div>
+          <label for="cfg-valida">Texto "Válida para…"</label>
+          <input id="cfg-valida" type="text" placeholder="(VÁLIDA PARA UNA PERSONA)" />
+        </div>
+      </div>
+
+      <div class="toolbar" style="margin-top:0.5rem;">
+        <button id="btn-guardar-cfg" class="btn btn-success">💾 Guardar datos del evento</button>
+        <button id="btn-toggle-avanzado" class="btn btn-secondary" type="button">⚙ Plantillas avanzadas</button>
+        <span id="cfg-feedback" class="muted" style="align-self:center;"></span>
+      </div>
+
+      <div id="cfg-avanzado" class="hidden" style="margin-top:1rem; border-top:1px solid var(--c-border); padding-top:1rem;">
+        <p class="muted" style="margin-bottom:0.5rem;">
+          Usa los marcadores <code>{CURSOS}</code>, <code>{FECHA}</code>, <code>{HORA}</code>,
+          <code>{LUGAR}</code>, <code>{CENTRO}</code>. Pon <code>**texto**</code> entre dobles
+          asteriscos para que aparezca en <strong>negrita</strong>.
+        </p>
+        <label for="cfg-plantilla-invitacion">Plantilla del texto de invitación</label>
+        <textarea id="cfg-plantilla-invitacion" rows="5"></textarea>
+        <label for="cfg-plantilla-stub">Plantilla del lateral (matriz)</label>
+        <input id="cfg-plantilla-stub" type="text" />
+      </div>
+
+      <div style="margin-top:1rem;">
+        <div class="muted" style="font-size:0.8rem; margin-bottom:0.25rem;">Vista previa del texto:</div>
+        <div id="cfg-preview"
+             style="padding:0.85rem; background:#0f172a; border:1px solid var(--c-border); border-radius:8px; font-style:italic; line-height:1.5; white-space:pre-wrap;">
+        </div>
+      </div>
+    </div>
+
     <!-- Crear entradas -->
     <div class="card">
       <h2>Crear nuevas entradas</h2>
@@ -85,7 +159,7 @@
     getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getFirestore, collection, doc, getDocs, setDoc, deleteDoc, updateDoc,
+    getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc,
     onSnapshot, query, orderBy, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -137,6 +211,7 @@
       show($("vista-admin"));
       $("user-email").textContent = user.email;
       iniciarListener();
+      cargarConfig();
     } else {
       hide($("vista-admin"));
       show($("vista-login"));
@@ -263,7 +338,147 @@
   });
 
   // ============================================================
-  //  GENERAR PDF: una entrada por página A4 vertical
+  //  CONFIG DEL EVENTO (sincronizada en Firestore: config/evento)
+  //  La web tiene un formulario que escribe en este documento, y
+  //  los valores se usan al generar el PDF. Si Firestore no tiene
+  //  nada todavía, se usan los defaults de config.js como fallback.
+  // ============================================================
+  const configRef = doc(db, "config", "evento");
+  let configEvento = {};
+
+  const DEFAULT_PLANTILLA_INVITACION =
+    "El **Claustro de Profesores del Centro** y los alumnos de " +
+    "**{CURSOS}** tienen el placer de invitarle al acto de Graduación, " +
+    "que tendrá lugar en **{LUGAR}** el **{FECHA}, a las {HORA}**. " +
+    "Agradecemos de antemano su asistencia a este acto tan especial para nuestra comunidad educativa.";
+  const DEFAULT_PLANTILLA_STUB = "Graduación de {CURSOS}";
+
+  async function cargarConfig() {
+    try {
+      const snap = await getDoc(configRef);
+      configEvento = snap.exists() ? snap.data() : {};
+    } catch (err) {
+      console.warn("No se pudo leer config/evento:", err);
+      configEvento = {};
+    }
+    rellenarForm();
+    actualizarPreview();
+  }
+
+  function rellenarForm() {
+    const c = configEvento;
+    $("cfg-titulo").value     = c.titulo     ?? (window.TITULO_PDF        || "");
+    $("cfg-instituto").value  = c.instituto  ?? (window.HEADER_CENTRO     || "");
+    $("cfg-consejeria").value = c.consejeria ?? (window.HEADER_CONSEJERIA || "");
+    $("cfg-cursos").value     = c.cursos     ?? "";
+    $("cfg-fecha").value      = c.fecha      ?? (window.FECHA_EVENTO || "");
+    $("cfg-hora").value       = c.hora       ?? (window.HORA_EVENTO  || "");
+    $("cfg-lugar").value      = c.lugar      ?? (window.LUGAR_EVENTO || "");
+    $("cfg-categoria").value  = c.categoria  ?? (window.CATEGORIA    || "AUTORIDADES");
+    $("cfg-valida").value     = c.valida     ?? (window.VALIDA_PARA  || "(VÁLIDA PARA UNA PERSONA)");
+    $("cfg-plantilla-invitacion").value = c.plantillaInvitacion ?? DEFAULT_PLANTILLA_INVITACION;
+    $("cfg-plantilla-stub").value       = c.plantillaStub       ?? DEFAULT_PLANTILLA_STUB;
+  }
+
+  function leerForm() {
+    return {
+      titulo:     $("cfg-titulo").value.trim(),
+      instituto:  $("cfg-instituto").value.trim(),
+      consejeria: $("cfg-consejeria").value.trim(),
+      cursos:     $("cfg-cursos").value.trim(),
+      fecha:      $("cfg-fecha").value.trim(),
+      hora:       $("cfg-hora").value.trim(),
+      lugar:      $("cfg-lugar").value.trim(),
+      categoria:  $("cfg-categoria").value.trim(),
+      valida:     $("cfg-valida").value.trim(),
+      plantillaInvitacion: $("cfg-plantilla-invitacion").value.trim() || DEFAULT_PLANTILLA_INVITACION,
+      plantillaStub:       $("cfg-plantilla-stub").value.trim()       || DEFAULT_PLANTILLA_STUB,
+    };
+  }
+
+  async function guardarConfig() {
+    const datos = leerForm();
+    $("btn-guardar-cfg").disabled = true;
+    $("cfg-feedback").textContent = "Guardando…";
+    $("cfg-feedback").style.color = "";
+    try {
+      await setDoc(configRef, datos);
+      configEvento = datos;
+      $("cfg-feedback").textContent = "✓ Guardado";
+      $("cfg-feedback").style.color = "#34d399";
+      setTimeout(() => { $("cfg-feedback").textContent = ""; }, 2500);
+    } catch (err) {
+      $("cfg-feedback").textContent = "Error: " + err.message;
+      $("cfg-feedback").style.color = "#f87171";
+      console.error(err);
+    } finally {
+      $("btn-guardar-cfg").disabled = false;
+    }
+  }
+
+  // Sustitución de placeholders {CLAVE} en una plantilla
+  function aplicarPlantilla(plantilla, vars) {
+    return (plantilla || "").replace(/\{(\w+)\}/g, (_, k) => {
+      const v = vars[k.toUpperCase()];
+      return (v == null || v === "") ? `{${k}}` : v;
+    });
+  }
+
+  function valoresPlantilla() {
+    const c = leerForm();
+    return {
+      CURSOS: c.cursos,
+      FECHA:  c.fecha,
+      HORA:   c.hora,
+      LUGAR:  c.lugar,
+      CENTRO: c.instituto
+    };
+  }
+
+  function actualizarPreview() {
+    const c = leerForm();
+    const cuerpo = aplicarPlantilla(c.plantillaInvitacion, valoresPlantilla());
+    // Quitar **...** sólo para el preview en pantalla
+    const limpio = cuerpo.replace(/\*\*(.+?)\*\*/g, (_, t) => t);
+    $("cfg-preview").textContent = limpio;
+  }
+
+  // Formateador de fecha en español (a partir de YYYY-MM-DD del date picker)
+  function formatearFechaES(yyyymmdd) {
+    const [y, mo, d] = yyyymmdd.split("-").map(Number);
+    if (!y || !mo || !d) return "";
+    const dias  = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+    const meses = ["enero","febrero","marzo","abril","mayo","junio","julio",
+                   "agosto","septiembre","octubre","noviembre","diciembre"];
+    const dt = new Date(y, mo - 1, d);
+    return `${dias[dt.getDay()]} ${d} de ${meses[mo - 1]} de ${y}`;
+  }
+
+  // --- Bindings del formulario ---
+  $("cfg-fecha-picker").addEventListener("change", () => {
+    const v = $("cfg-fecha-picker").value;
+    if (v) $("cfg-fecha").value = formatearFechaES(v);
+    actualizarPreview();
+  });
+  $("cfg-hora-picker").addEventListener("change", () => {
+    const v = $("cfg-hora-picker").value;
+    if (v) $("cfg-hora").value = `${v} horas`;
+    actualizarPreview();
+  });
+  ["cfg-titulo","cfg-instituto","cfg-consejeria","cfg-cursos",
+   "cfg-fecha","cfg-hora","cfg-lugar","cfg-categoria","cfg-valida",
+   "cfg-plantilla-invitacion","cfg-plantilla-stub"
+  ].forEach(id => $(id).addEventListener("input", actualizarPreview));
+
+  $("btn-guardar-cfg").addEventListener("click", guardarConfig);
+  $("btn-toggle-avanzado").addEventListener("click", () => {
+    $("cfg-avanzado").classList.toggle("hidden");
+  });
+
+  // ============================================================
+  //  GENERAR PDF: una entrada por página A4 HORIZONTAL
+  //  Diseño: matriz lateral + invitación formal + QR.
+  //  Textos editables en config.js.
   // ============================================================
   $("btn-pdf").addEventListener("click", async () => {
     if (entradasCache.length === 0) return alert("No hay entradas para imprimir.");
@@ -276,31 +491,38 @@
       await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js");
 
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      // A4 horizontal: 297 x 210 mm
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+      const W = 297, H = 210;
 
-      // Datos de configuración (vienen de config.js)
+      // Cargar logos (CLM izquierda + IES derecha). null = se cae con elegancia.
+      const [logoCLM, logoIES] = await Promise.all([
+        cargarLogoComoDataURL(window.LOGO_CLM_URL),
+        cargarLogoComoDataURL(window.LOGO_IES_URL || window.LOGO_URL)
+      ]);
+      const siglas = window.SIGLAS_IES || "IES";
       const evento = window.NOMBRE_EVENTO || "Graduación";
-      const fecha  = window.FECHA_EVENTO  || "Por confirmar";
-      const hora   = window.HORA_EVENTO   || "Por confirmar";
-      const lugar  = window.LUGAR_EVENTO  || "";
-      const siglas = window.SIGLAS_IES    || "IES";
 
-      // Cargar logo si existe; null = se dibuja placeholder
-      const logoData = await cargarLogoComoDataURL(window.LOGO_URL);
-
-      // Medidas A4 vertical
-      const W = 210, H = 297, M = 18;
-      const cardX = M, cardY = M, cardW = W - 2*M, cardH = H - 2*M;
+      // Leer la config del formulario (lo que el usuario ve y editó)
+      const c = leerForm();
+      const vars = valoresPlantilla();
+      const opts = {
+        logoCLM, logoIES, siglas, W, H,
+        titulo:           c.titulo,
+        headerConsejeria: c.consejeria,
+        headerCentro:     c.instituto,
+        textoInvitacion:  aplicarPlantilla(c.plantillaInvitacion, vars),
+        stubTexto:        aplicarPlantilla(c.plantillaStub, vars),
+        categoria:        c.categoria,
+        validaPara:       c.valida
+      };
 
       // Ordenar por código alfabético para PDF predecible
       const ordenadas = [...entradasCache].sort((a, b) => a.id.localeCompare(b.id));
 
       for (let i = 0; i < ordenadas.length; i++) {
         if (i > 0) pdf.addPage();
-        await dibujarPaginaEntrada(pdf, ordenadas[i].id, {
-          evento, fecha, hora, lugar, siglas, logoData,
-          W, H, M, cardX, cardY, cardW, cardH
-        });
+        await dibujarPaginaEntrada(pdf, ordenadas[i].id, i + 1, opts);
       }
 
       pdf.save(`entradas_${(evento || 'graduacion').replace(/\s+/g,'_').toLowerCase()}.pdf`);
@@ -314,132 +536,207 @@
   });
 
   // ============================================================
-  //  Dibuja una sola página/entrada en el PDF
+  //  Dibuja una sola entrada (A4 horizontal) según el diseño:
+  //   - Matriz izquierda con texto rotado + Nº
+  //   - Línea de corte discontinua roja
+  //   - Logo arriba-izq, cabecera arriba-der
+  //   - Título centrado
+  //   - Texto de invitación justificado (cursiva + **negrita**)
+  //   - QR centrado abajo
+  //   - "(VÁLIDA PARA UNA PERSONA)" + categoría abajo-izq
+  //   - Nº abajo-derecha
   // ============================================================
-  async function dibujarPaginaEntrada(pdf, codigo, opt) {
-    const { evento, fecha, hora, lugar, siglas, logoData,
-            W, cardX, cardY, cardW, cardH } = opt;
+  async function dibujarPaginaEntrada(pdf, codigo, numero, opt) {
+    const { logoCLM, logoIES, siglas, W, H } = opt;
+    const M = 10;                    // margen exterior
+    const stubW = 55;                // ancho de la matriz lateral
+    const lineX = M + stubW;         // posición x de la línea de corte
+    const numStr = `Nº ${String(numero).padStart(3, '0')}`;
 
-    // ---------- Marco exterior decorativo ----------
-    pdf.setDrawColor(40, 60, 110);
-    pdf.setLineWidth(0.8);
-    pdf.rect(cardX, cardY, cardW, cardH);
-    pdf.setLineWidth(0.2);
-    pdf.rect(cardX + 2, cardY + 2, cardW - 4, cardH - 4);
+    // -------- LÍNEA DE CORTE DISCONTINUA (vertical, roja) --------
+    try { pdf.setLineDashPattern([2, 1.5], 0); } catch (_) {}
+    pdf.setDrawColor(200, 60, 60);
+    pdf.setLineWidth(0.5);
+    pdf.line(lineX, M, lineX, H - M);
+    try { pdf.setLineDashPattern([], 0); } catch (_) {}
 
-    // ---------- Cabecera: logo banner centrado ----------
-    let cursorY = cardY + 10;            // y por donde vamos dibujando
+    // -------- MATRIZ LATERAL: texto rotado + Nº --------
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text(opt.stubTexto || window.STUB_TEXTO || "Graduación",
+             M + stubW/2 - 2, H/2,
+             { angle: 90, align: "center", maxWidth: H - 2*M - 25 });
 
-    if (logoData && logoData.dataURL) {
-      // Logo manteniendo aspect ratio. Caja máxima 130 mm de ancho × 45 mm de alto.
-      const maxW = 130, maxH = 45;
-      const ratio = logoData.w / logoData.h;
-      let drawW = maxW, drawH = maxW / ratio;
-      if (drawH > maxH) { drawH = maxH; drawW = maxH * ratio; }
-      const drawX = cardX + (cardW - drawW) / 2;
-      pdf.addImage(logoData.dataURL, "PNG", drawX, cursorY, drawW, drawH,
-                   undefined, "FAST");
-      cursorY += drawH + 4;
-    } else {
-      // Placeholder: círculo grande con siglas
-      const r = 18;
-      pdf.setDrawColor(40, 60, 110);
-      pdf.setFillColor(232, 240, 254);
-      pdf.circle(cardX + cardW/2, cursorY + r, r, "FD");
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(20);
-      pdf.setTextColor(40, 60, 110);
-      pdf.text(siglas, cardX + cardW/2, cursorY + r + 3, { align: "center" });
-      cursorY += 2*r + 4;
-    }
-
-    // Subtítulo con nombre del evento
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(15);
-    pdf.setTextColor(40, 60, 110);
-    pdf.text(evento, cardX + cardW/2, cursorY + 7, { align: "center" });
-    cursorY += 11;
+    pdf.setTextColor(30, 30, 30);
+    pdf.text(numStr, M + 5, H - M - 5);
 
+    // -------- ZONA PRINCIPAL --------
+    const mainX = lineX + 8;
+    const mainW = W - mainX - M;
+
+    // Cabecera del PDF:
+    //   IZQUIERDA: escudo de Castilla-La Mancha
+    //   DERECHA:   "Consejería de Educación, ..." + logo del IES debajo
+    const headerTopY = M + 2;
+    const headerH = 26;
+
+    // --- Logo CLM (izquierda) ---
+    if (logoCLM && logoCLM.dataURL) {
+      const maxH = headerH, maxW = 48;
+      const ratio = logoCLM.w / logoCLM.h;
+      let dh = maxH, dw = dh * ratio;
+      if (dw > maxW) { dw = maxW; dh = dw / ratio; }
+      pdf.addImage(logoCLM.dataURL, "PNG", mainX, headerTopY, dw, dh, undefined, "FAST");
+    } else {
+      // Placeholder si no encuentra el archivo logo-clm.png
+      pdf.setDrawColor(40, 60, 110);
+      pdf.setFillColor(232, 240, 254);
+      pdf.circle(mainX + 12, headerTopY + 13, 11, "FD");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9);
+      pdf.setTextColor(40, 60, 110);
+      pdf.text("CLM", mainX + 12, headerTopY + 15, { align: "center" });
+    }
+
+    // --- Cabecera derecha: texto Consejería + logo IES debajo ---
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    pdf.setTextColor(120, 120, 120);
-    pdf.text("ENTRADA · Presenta este código al entrar", cardX + cardW/2,
-             cursorY + 4, { align: "center" });
-    cursorY += 6;
+    pdf.setFontSize(12);
+    pdf.setTextColor(40, 60, 110);
+    pdf.text(opt.headerConsejeria || window.HEADER_CONSEJERIA || "Consejería de Educación, Cultura y Deportes",
+             W - M, headerTopY + 6, { align: "right" });
 
-    // Línea separadora
-    pdf.setDrawColor(40, 60, 110);
-    pdf.setLineWidth(0.4);
-    pdf.line(cardX + 12, cursorY + 3, cardX + cardW - 12, cursorY + 3);
-    cursorY += 8;
+    if (logoIES && logoIES.dataURL) {
+      // Logo del IES debajo de la línea de Consejería, alineado a la derecha
+      const maxH = 16, maxW = 55;
+      const ratio = logoIES.w / logoIES.h;
+      let dh = maxH, dw = dh * ratio;
+      if (dw > maxW) { dw = maxW; dh = dw / ratio; }
+      pdf.addImage(logoIES.dataURL, "PNG",
+                   W - M - dw, headerTopY + 8, dw, dh,
+                   undefined, "FAST");
+    } else {
+      // Fallback: si no hay logo del IES, ponemos el nombre como texto
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.setTextColor(40, 60, 110);
+      pdf.text(opt.headerCentro || window.HEADER_CENTRO || "I.E.S. Aldebarán",
+               W - M, headerTopY + 14, { align: "right" });
+    }
 
-    // ---------- QR enorme centrado ----------
-    const qrSize = 92;
-    const qrX = cardX + (cardW - qrSize) / 2;
-    const qrY = cursorY;
+    // Título centrado
+    let cursorY = headerTopY + headerH + 10;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(24);
+    pdf.setTextColor(40, 60, 110);
+    pdf.text(opt.titulo || window.TITULO_PDF || "ACTO DE GRADUACIÓN 2026",
+             mainX + mainW/2, cursorY, { align: "center" });
+
+    // Texto de invitación (cursiva + **negrita**, justificado)
+    const cuerpo = opt.textoInvitacion || window.TEXTO_INVITACION || "";
+    const bodyStartY = cursorY + 11;
+    const bodyEndY = renderTextoRico(pdf, cuerpo,
+                                     mainX + 6, bodyStartY,
+                                     mainW - 12,
+                                     7,    // alto de línea
+                                     13);  // tamaño de fuente
+    cursorY = bodyEndY;
+
+    // Zona del pie reservada (donde van etiquetas + Nº)
+    const pieTopY = H - M - 18;
+
+    // QR centrado y dimensionado para llenar el hueco restante
+    const huecoLibre = pieTopY - cursorY - 6;  // 6mm de respiro arriba
+    const qrSize = Math.max(40, Math.min(70, huecoLibre));
+    const qrY = cursorY + 4 + (huecoLibre - qrSize) / 2;
+    const qrX = mainX + (mainW - qrSize) / 2;
     const qrDataURL = await generarQRDataURL(codigo, 512);
     pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
 
-    // Borde fino alrededor del QR
-    pdf.setDrawColor(220);
-    pdf.setLineWidth(0.2);
-    pdf.rect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4);
-
-    // ---------- Código de la entrada ----------
-    pdf.setFont("courier", "bold");
-    pdf.setFontSize(20);
-    pdf.setTextColor(40, 60, 110);
-    pdf.text(codigo, W/2, qrY + qrSize + 12, { align: "center" });
-
-    // ---------- Datos del evento ----------
-    const infoY = qrY + qrSize + 22;
-    pdf.setFont("helvetica", "normal");
+    // Pie izquierda: (VÁLIDA PARA UNA PERSONA) + categoría
+    pdf.setFont("helvetica", "italic");
     pdf.setFontSize(11);
-    pdf.setTextColor(60, 60, 60);
-
-    const linea = (label, value, y, pendiente) => {
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(60, 60, 60);
-      pdf.text(label, cardX + 18, y);
-      pdf.setFont("helvetica", pendiente ? "italic" : "normal");
-      if (pendiente) {
-        pdf.setTextColor(200, 130, 50);
-      } else {
-        pdf.setTextColor(60, 60, 60);
-      }
-      pdf.text(value, cardX + 50, y);
-      pdf.setTextColor(60, 60, 60);
-    };
-    const esPendiente = (s) => /por confirmar/i.test(s || "");
-    linea("FECHA:", fecha, infoY,        esPendiente(fecha));
-    linea("HORA:",  hora,  infoY + 7,    esPendiente(hora));
-    if (lugar) linea("LUGAR:", lugar, infoY + 14, esPendiente(lugar));
-
-    // ---------- Línea de corte decorativa ----------
-    const cutY = cardY + cardH - 28;
-    pdf.setDrawColor(180);
-    pdf.setLineWidth(0.3);
-    pdf.setLineDashPattern([1.5, 1.5], 0);
-    pdf.line(cardX + 8, cutY, cardX + cardW - 8, cutY);
-    pdf.setLineDashPattern([], 0);
-    pdf.setFillColor(255, 255, 255);
-    pdf.rect(W/2 - 4, cutY - 2, 8, 4, "F");
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    pdf.setTextColor(140);
-    pdf.text("✂", W/2, cutY + 1.5, { align: "center" });
-
-    // ---------- Pie ----------
-    const footY = cardY + cardH - 16;
+    pdf.setTextColor(40, 40, 40);
+    pdf.text(opt.validaPara || window.VALIDA_PARA || "(VÁLIDA PARA UNA PERSONA)",
+             mainX + 4, H - M - 10);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
+    pdf.setFontSize(12);
     pdf.setTextColor(40, 60, 110);
-    pdf.text("Una entrada, una persona", W/2, footY, { align: "center" });
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
-    pdf.setTextColor(140);
-    pdf.text("Esta entrada es nominativa al portador. Consérvala hasta el final del evento.",
-             W/2, footY + 5, { align: "center" });
+    pdf.text(opt.categoria || window.CATEGORIA || "AUTORIDADES",
+             mainX + 4, H - M - 3);
+
+    // Pie derecha: Nº secuencial
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(17);
+    pdf.setTextColor(30, 30, 30);
+    pdf.text(numStr, W - M - 4, H - M - 5, { align: "right" });
+  }
+
+  // ============================================================
+  //  Render de texto con cursiva + **negrita-cursiva** y
+  //  justificación por palabra (reparte espacios sobrantes).
+  //  La última línea queda alineada a la izquierda.
+  // ============================================================
+  function renderTextoRico(pdf, text, x, y, maxW, lineHeight, fontSize) {
+    fontSize = fontSize || 11;
+    // 1) Trocear por marcadores **...**
+    const parts = [];
+    const re = /\*\*([\s\S]+?)\*\*/g;
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push({ text: text.slice(last, m.index), bold: false });
+      parts.push({ text: m[1], bold: true });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push({ text: text.slice(last), bold: false });
+
+    // 2) Tokenizar en palabras + espacios
+    const tokens = [];
+    for (const p of parts) {
+      const segs = p.text.split(/(\s+)/);
+      for (const s of segs) if (s) tokens.push({ text: s, bold: p.bold });
+    }
+
+    // 3) Wrapping greedy con medición real por token
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(40, 40, 40);
+    const setEstilo = (bold) => pdf.setFont("helvetica", bold ? "bolditalic" : "italic");
+
+    const lines = [];
+    let cur = [], curW = 0;
+    for (const t of tokens) {
+      setEstilo(t.bold);
+      const w = pdf.getTextWidth(t.text);
+      if (curW + w > maxW && cur.length) {
+        lines.push(cur);
+        cur = []; curW = 0;
+        if (/^\s+$/.test(t.text)) continue;  // espacio inicial: descartar
+      }
+      cur.push({ ...t, w });
+      curW += w;
+    }
+    if (cur.length) lines.push(cur);
+
+    // 4) Renderizar con justificación (excepto la última)
+    let cy = y;
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      while (line.length && /^\s+$/.test(line[line.length - 1].text)) line.pop();
+      const isLast = li === lines.length - 1;
+      const totalW = line.reduce((s, t) => s + t.w, 0);
+      const spaces = line.filter(t => /^\s+$/.test(t.text)).length;
+      const extra = (!isLast && spaces > 0) ? (maxW - totalW) / spaces : 0;
+      let cx = x;
+      for (const t of line) {
+        setEstilo(t.bold);
+        pdf.text(t.text, cx, cy);
+        cx += t.w + (/^\s+$/.test(t.text) ? extra : 0);
+      }
+      cy += lineHeight;
+    }
+    return cy;
   }
 
   // ============================================================
@@ -454,22 +751,23 @@
     });
   }
 
-  // Carga el logo y lo redimensiona (para no inflar el PDF si es enorme).
-  // Devuelve { dataURL, w, h } con las dimensiones originales (para
-  // poder mantener el aspect ratio al dibujarlo). null si no se puede.
+  // Carga un logo y lo redimensiona, devolviendo un PNG dataURL.
+  //
+  //   1) intenta vía <img> directo (funciona en file:// y http(s)://)
+  //   2) si el canvas queda "tainted" (mismo origen diferente en Chrome
+  //      con file://), reintenta vía fetch+blob como respaldo.
+  //   3) si nada funciona, log a consola y null (el PDF saldrá sin logo).
   async function cargarLogoComoDataURL(url, maxPx = 600) {
     if (!url) return null;
-    try {
-      const r = await fetch(url, { cache: "no-store" });
-      if (!r.ok) return null;
-      const blob = await r.blob();
-      const objURL = URL.createObjectURL(blob);
+
+    const cargarConImg = (src) => new Promise((res, rej) => {
       const img = new Image();
-      await new Promise((res, rej) => {
-        img.onload = res;
-        img.onerror = rej;
-        img.src = objURL;
-      });
+      img.onload = () => res(img);
+      img.onerror = (e) => rej(new Error("img onerror"));
+      img.src = src;
+    });
+
+    const aDataURL = (img) => {
       const origW = img.naturalWidth, origH = img.naturalHeight;
       const scale = Math.min(maxPx / origW, maxPx / origH, 1);
       const w = Math.max(1, Math.round(origW * scale));
@@ -479,11 +777,31 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      const dataURL = canvas.toDataURL('image/png');
-      URL.revokeObjectURL(objURL);
-      return { dataURL, w: origW, h: origH };
-    } catch (e) {
-      console.warn('No se pudo cargar logo:', e);
+      return { dataURL: canvas.toDataURL('image/png'), w: origW, h: origH };
+    };
+
+    // Intento 1: <img> directo
+    try {
+      const img = await cargarConImg(url);
+      return aDataURL(img);
+    } catch (e1) {
+      console.warn('Logo: fallo cargando vía <img>, pruebo fetch+blob:', url, e1);
+    }
+
+    // Intento 2: fetch + blob URL (por si el navegador bloquea el primero)
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const blob = await r.blob();
+      const objURL = URL.createObjectURL(blob);
+      try {
+        const img = await cargarConImg(objURL);
+        return aDataURL(img);
+      } finally {
+        URL.revokeObjectURL(objURL);
+      }
+    } catch (e2) {
+      console.warn('Logo: tampoco se pudo cargar vía fetch:', url, e2);
       return null;
     }
   }
