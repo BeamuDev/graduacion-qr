@@ -194,10 +194,14 @@
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // Comprobar que el email coincide con el admin configurado
-      const adminEmail = (window.ADMIN_EMAIL || "").toLowerCase();
-      const userEmail  = (user.email || "").toLowerCase();
-      if (adminEmail && userEmail !== adminEmail) {
+      // Comprobar que el email es uno de los admins configurados
+      const adminEmails = (window.ADMIN_EMAILS && window.ADMIN_EMAILS.length
+                            ? window.ADMIN_EMAILS
+                            : [window.ADMIN_EMAIL])
+                          .filter(Boolean)
+                          .map(e => e.toLowerCase());
+      const userEmail = (user.email || "").toLowerCase();
+      if (adminEmails.length && !adminEmails.includes(userEmail)) {
         // No es admin: mostrar mensaje y cerrar sesión
         hide($("vista-admin"));
         show($("vista-login"));

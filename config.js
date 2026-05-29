@@ -19,10 +19,17 @@ window.firebaseConfig = {
 // Nombre del centro / evento (aparece en cabeceras y PDF)
 window.NOMBRE_EVENTO = "Graduación 2026 · IES Aldebarán";
 
-// Email del usuario administrador. Solo este usuario podrá entrar
-// al panel de admin. Tiene que coincidir con el email puesto en las
-// reglas de Firestore (función esAdmin).
-window.ADMIN_EMAIL = "admin@graduacion.es";
+// Emails con permisos de administración. Estos usuarios pueden entrar
+// al panel admin, crear/borrar entradas y editar la configuración.
+// Tienen que coincidir con los emails listados en firestore.rules
+// (función esAdmin). Para añadir más, simplemente amplía el array
+// aquí Y en las reglas.
+window.ADMIN_EMAILS = [
+  "admin@graduacion.es",
+  "dptoextra@gmail.com"
+];
+// Mantenemos ADMIN_EMAIL por compatibilidad (apunta al primero).
+window.ADMIN_EMAIL = window.ADMIN_EMAILS[0];
 
 // =============================================================
 //  TEXTOS QUE APARECEN EN EL PDF DE LAS ENTRADAS
