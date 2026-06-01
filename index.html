@@ -3,33 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Entradas Graduación</title>
+  <title>Generador de Entradas QR</title>
   <link rel="stylesheet" href="style.css" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0a0f1f" />
 </head>
 <body>
-  <div class="container" style="padding-top: 3rem;">
-    <div class="card" style="text-align:center;">
-      <h1 id="titulo">Entradas Graduación</h1>
-      <p class="muted" style="margin: 0.5rem 0 1.5rem;">Sistema de validación con QR</p>
+  <div class="bg-gradient"></div>
 
-      <div style="display:flex; flex-direction:column; gap:0.75rem;">
-        <a class="btn btn-block" href="scan.html">📷 Escanear entradas</a>
-        <a class="btn btn-block btn-secondary" href="admin.html">⚙️ Panel de administración</a>
-      </div>
+  <main class="container landing">
+    <div class="hero">
+      <div class="hero-badge">Herramienta interna</div>
+      <h1 id="titulo" class="hero-title">Generador de Entradas QR</h1>
+      <p class="hero-sub" id="subtitulo">Emite, imprime y valida entradas con código QR en tiempo real.</p>
     </div>
 
-    <p class="muted" style="text-align:center; margin-top: 2rem;">
-      Para empezar, configura tu proyecto Firebase en <code>config.js</code> y consulta el
+    <div class="hero-actions">
+      <a class="action-card action-primary" href="scan.html">
+        <span class="action-icon">📷</span>
+        <span class="action-text">
+          <span class="action-title">Escanear entradas</span>
+          <span class="action-desc">Modo puerta · valida QR con la cámara</span>
+        </span>
+        <span class="action-arrow">→</span>
+      </a>
+      <a class="action-card" href="admin.html">
+        <span class="action-icon">⚙️</span>
+        <span class="action-text">
+          <span class="action-title">Panel de administración</span>
+          <span class="action-desc">Crea entradas, edita datos y descarga el PDF</span>
+        </span>
+        <span class="action-arrow">→</span>
+      </a>
+    </div>
+
+    <p class="muted center" style="margin-top:2.5rem;">
+      Configuración del proyecto en <code>config.js</code>. Más info en el
       <a href="README.md">README</a>.
     </p>
-  </div>
+  </main>
 
   <script src="config.js"></script>
   <script>
+    if (window.NOMBRE_HERRAMIENTA) {
+      document.getElementById('titulo').textContent = window.NOMBRE_HERRAMIENTA;
+      document.title = window.NOMBRE_HERRAMIENTA;
+    }
     if (window.NOMBRE_EVENTO) {
-      document.getElementById('titulo').textContent = window.NOMBRE_EVENTO;
-      document.title = window.NOMBRE_EVENTO;
+      document.getElementById('subtitulo').textContent =
+        window.NOMBRE_EVENTO + " · Emite, imprime y valida entradas con QR.";
     }
   </script>
 </body>

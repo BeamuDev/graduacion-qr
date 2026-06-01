@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Escáner · Entradas Graduación</title>
+  <title>Escáner · Generador de Entradas QR</title>
   <link rel="stylesheet" href="style.css" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0a0f1f" />
 </head>
 <body>
+<div class="bg-gradient"></div>
 
 <!-- ======== LOGIN ======== -->
 <section id="vista-login" class="container" style="padding-top: 3rem;">
@@ -28,14 +29,63 @@
   </div>
 </section>
 
-<!-- ======== ESCÁNER ======== -->
-<section id="vista-scan" class="hidden">
+<!-- ======== SELECTOR DE EVENTO ======== -->
+<section id="vista-elegir-evento" class="hidden">
   <header class="topbar">
-    <h1 id="evento-titulo">Escáner</h1>
-    <span><span id="user-email" class="user"></span> · <a href="#" id="btn-logout">Salir</a></span>
+    <div class="topbar-left">
+      <span class="topbar-icon">📷</span>
+      <div>
+        <h1 id="evento-titulo-elegir">Generador de Entradas QR</h1>
+        <div class="topbar-sub">Selecciona el evento</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="user-email-elegir" class="user"></span>
+      <a href="#" id="btn-logout-elegir" class="btn-link">Salir</a>
+    </div>
   </header>
 
   <div class="container">
+    <div class="card">
+      <h2>🗓 ¿Qué evento vas a escanear?</h2>
+      <p class="muted" style="margin-bottom:1rem;">
+        Elige el evento al que pertenecen las entradas que vas a validar.
+      </p>
+      <div id="lista-eventos-elegir" class="event-list"></div>
+      <div id="eventos-elegir-empty" class="event-empty hidden">
+        <span class="icono">🗓</span>
+        No hay eventos disponibles. Pide al administrador que cree uno.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== ESCÁNER ======== -->
+<section id="vista-scan" class="hidden">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-icon">📷</span>
+      <div>
+        <h1 id="evento-titulo">Generador de Entradas QR</h1>
+        <div class="topbar-sub">Modo escáner</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="user-email" class="user"></span>
+      <a href="#" id="btn-logout" class="btn-link">Salir</a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <div class="event-banner" id="event-banner">
+      <div class="event-banner-dot" id="banner-dot"></div>
+      <div class="event-banner-text">
+        <div class="lbl">Escaneando para</div>
+        <div class="nom" id="banner-nombre">—</div>
+      </div>
+      <button id="btn-cambiar-evento" class="btn btn-secondary" style="padding:0.4rem 0.7rem;" title="Cambiar de evento">🔄</button>
+    </div>
 
     <div class="stats">
       <div class="stat"><div class="num" id="stat-disponibles" style="color:#34d399;">–</div><div class="lbl">Disponibles</div></div>
@@ -44,8 +94,9 @@
     </div>
 
     <div class="card">
+      <h2>📷 Lector QR</h2>
       <div id="reader"></div>
-      <div class="toolbar" style="margin-top:0.75rem;">
+      <div class="toolbar" style="margin-top:0.85rem;">
         <button id="btn-toggle" class="btn">⏸ Pausar</button>
         <button id="btn-camara" class="btn btn-secondary">🔄 Cambiar cámara</button>
       </div>
@@ -57,7 +108,7 @@
     </div>
 
     <div class="card">
-      <h2>Últimos escaneos</h2>
+      <h2>📜 Últimos escaneos</h2>
       <div id="historial" class="list"></div>
     </div>
 
@@ -65,7 +116,6 @@
 </section>
 
 <script src="config.js"></script>
-<!-- Lector de QR (cdnjs porque unpkg da problemas en algunas redes) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
 <script type="module">
@@ -74,21 +124,26 @@
     getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query
+    getFirestore, collection, doc, getDoc, getDocs, updateDoc,
+    onSnapshot, query, orderBy
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const app  = initializeApp(window.firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
-  const col  = collection(db, "entradas");
 
   const $ = (id) => document.getElementById(id);
   const show = (el) => el.classList.remove('hidden');
   const hide = (el) => el.classList.add('hidden');
 
-  if (window.NOMBRE_EVENTO) $("evento-titulo").textContent = window.NOMBRE_EVENTO;
+  if (window.NOMBRE_HERRAMIENTA) {
+    $("evento-titulo").textContent = window.NOMBRE_HERRAMIENTA;
+    $("evento-titulo-elegir").textContent = window.NOMBRE_HERRAMIENTA;
+  }
 
-  // ----------- Login -----------
+  // ============================================================
+  //  LOGIN
+  // ============================================================
   $("form-login").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("login-error").textContent = "";
@@ -100,36 +155,184 @@
     }
   });
 
-  $("btn-logout").addEventListener("click", async (e) => {
+  $("btn-logout").addEventListener("click", cerrarSesion);
+  $("btn-logout-elegir").addEventListener("click", cerrarSesion);
+  async function cerrarSesion(e) {
     e.preventDefault();
     if (scanner) { try { await scanner.stop(); } catch(_){} }
+    detenerListenerEntradas();
+    detenerListenerEventos();
     await signOut(auth);
-  });
+  }
 
+  // ============================================================
+  //  ESTADO
+  // ============================================================
+  let eventoActivoId = localStorage.getItem("eventoActivoId") || null;
+  let eventosCache   = [];
+  let unsubEventos   = null;
+  let unsubEntradas  = null;
   let scanner = null;
   let camaras = [];
   let camaraIdx = 0;
   let pausado = false;
   let ultimoCodigo = null;
   let ultimoTs = 0;
-  const COOLDOWN_MS = 2000; // evita re-leer el mismo QR enseguida
+  const COOLDOWN_MS = 2000;
+
+  const colEntradas = () => collection(db, "eventos", eventoActivoId, "entradas");
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       hide($("vista-login"));
-      show($("vista-scan"));
       $("user-email").textContent = user.email;
-      iniciarStatsListener();
-      await iniciarEscaner();
+      $("user-email-elegir").textContent = user.email;
+
+      if (eventoActivoId) {
+        // Verificar que el evento aún existe
+        try {
+          const snap = await getDoc(doc(db, "eventos", eventoActivoId));
+          if (snap.exists()) {
+            entrarAEscaner(snap.data());
+            return;
+          }
+        } catch (_) {}
+        // No existe ya: limpiar y volver al selector
+        eventoActivoId = null;
+        localStorage.removeItem("eventoActivoId");
+      }
+      mostrarSelectorEvento();
     } else {
+      eventoActivoId = null;
+      localStorage.removeItem("eventoActivoId");
+      if (scanner) { try { await scanner.stop(); } catch(_){} scanner = null; }
+      detenerListenerEntradas();
+      detenerListenerEventos();
       hide($("vista-scan"));
+      hide($("vista-elegir-evento"));
       show($("vista-login"));
     }
   });
 
-  // ----------- Stats en vivo -----------
-  function iniciarStatsListener() {
-    onSnapshot(query(col), (snap) => {
+  // ============================================================
+  //  SELECTOR DE EVENTO
+  // ============================================================
+  function mostrarSelectorEvento() {
+    hide($("vista-scan"));
+    show($("vista-elegir-evento"));
+    iniciarListenerEventos();
+  }
+
+  function iniciarListenerEventos() {
+    detenerListenerEventos();
+    try {
+      const q = query(collection(db, "eventos"), orderBy("creado", "desc"));
+      unsubEventos = onSnapshot(q, async (snap) => {
+        eventosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        await refrescarStatsEventos();
+        pintarEventosParaElegir();
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  function detenerListenerEventos() {
+    if (unsubEventos) { unsubEventos(); unsubEventos = null; }
+  }
+
+  async function refrescarStatsEventos() {
+    await Promise.all(eventosCache.map(async (ev) => {
+      try {
+        const snap = await getDocs(collection(db, "eventos", ev.id, "entradas"));
+        let total = 0, usadas = 0;
+        snap.forEach(d => { total++; if (d.data().usada) usadas++; });
+        ev._total = total;
+        ev._usadas = usadas;
+      } catch (_) { ev._total = 0; ev._usadas = 0; }
+    }));
+  }
+
+  function pintarEventosParaElegir() {
+    const lista = $("lista-eventos-elegir");
+    if (!eventosCache.length) {
+      lista.innerHTML = "";
+      show($("eventos-elegir-empty"));
+      return;
+    }
+    hide($("eventos-elegir-empty"));
+    lista.innerHTML = eventosCache.map(ev => {
+      const total = ev._total || 0;
+      const usadas = ev._usadas || 0;
+      const dispo = total - usadas;
+      const pct = total ? Math.round((usadas / total) * 100) : 0;
+      const color = ev.color || "#3b82f6";
+      const fecha = ev.fecha || "Sin fecha";
+      return `
+        <div class="event-card" data-id="${ev.id}" style="--event-color: ${color}">
+          <div class="event-card-header">
+            <div style="min-width:0;">
+              <div class="event-card-title">${escapeHTML(ev.nombre || "Sin nombre")}</div>
+              <div class="event-card-meta">${escapeHTML(fecha)}</div>
+            </div>
+          </div>
+          <div class="event-card-stats">
+            <div class="event-card-stat"><span class="val" style="color:#34d399;">${dispo}</span><span class="lbl">Disponibles</span></div>
+            <div class="event-card-stat"><span class="val" style="color:#f87171;">${usadas}</span><span class="lbl">Validadas</span></div>
+            <div class="event-card-stat"><span class="val">${total}</span><span class="lbl">Total</span></div>
+          </div>
+          <div class="event-card-progress"><div class="bar" style="width:${pct}%"></div></div>
+        </div>
+      `;
+    }).join("");
+
+    lista.querySelectorAll(".event-card").forEach(c => {
+      c.onclick = () => {
+        const id = c.dataset.id;
+        const ev = eventosCache.find(e => e.id === id);
+        if (!ev) return;
+        eventoActivoId = id;
+        localStorage.setItem("eventoActivoId", id);
+        entrarAEscaner(ev);
+      };
+    });
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, ch =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+  }
+
+  // ============================================================
+  //  ENTRAR AL MODO ESCÁNER (con un evento ya seleccionado)
+  // ============================================================
+  async function entrarAEscaner(eventoData) {
+    detenerListenerEventos();
+    hide($("vista-elegir-evento"));
+    show($("vista-scan"));
+
+    $("banner-nombre").textContent = eventoData?.nombre || eventoActivoId;
+    const color = eventoData?.color || "#3b82f6";
+    $("banner-dot").style.background = color;
+    $("banner-dot").style.boxShadow = `0 0 12px ${color}`;
+
+    iniciarListenerEntradas();
+    await iniciarEscaner();
+  }
+
+  $("btn-cambiar-evento").addEventListener("click", async () => {
+    if (scanner) { try { await scanner.stop(); } catch(_){} scanner = null; }
+    detenerListenerEntradas();
+    eventoActivoId = null;
+    localStorage.removeItem("eventoActivoId");
+    mostrarSelectorEvento();
+  });
+
+  // ============================================================
+  //  STATS EN VIVO DEL EVENTO ACTIVO
+  // ============================================================
+  function iniciarListenerEntradas() {
+    detenerListenerEntradas();
+    unsubEntradas = onSnapshot(query(colEntradas()), (snap) => {
       let total = 0, usadas = 0;
       snap.forEach(d => { total++; if (d.data().usada) usadas++; });
       $("stat-total").textContent = total;
@@ -137,8 +340,13 @@
       $("stat-disponibles").textContent = total - usadas;
     });
   }
+  function detenerListenerEntradas() {
+    if (unsubEntradas) { unsubEntradas(); unsubEntradas = null; }
+  }
 
-  // ----------- Cámara -----------
+  // ============================================================
+  //  CÁMARA
+  // ============================================================
   async function iniciarEscaner() {
     try {
       camaras = await Html5Qrcode.getCameras();
@@ -146,10 +354,9 @@
         mostrarError("No se detecta ninguna cámara en este dispositivo.");
         return;
       }
-      // Preferir cámara trasera si la hay
       const trasera = camaras.findIndex(c => /back|rear|trasera|environment/i.test(c.label));
       camaraIdx = trasera >= 0 ? trasera : 0;
-      scanner = new Html5Qrcode("reader");
+      if (!scanner) scanner = new Html5Qrcode("reader");
       await arrancarCamara();
     } catch (err) {
       mostrarError("No se pudo acceder a la cámara: " + err.message);
@@ -187,18 +394,20 @@
     }
   });
 
-  // ----------- Lógica al leer un QR -----------
+  // ============================================================
+  //  LECTURA DE QR
+  // ============================================================
   async function onScan(decodedText) {
+    if (!eventoActivoId) return;
     const codigo = (decodedText || "").trim();
     const ahora = Date.now();
     if (codigo === ultimoCodigo && ahora - ultimoTs < COOLDOWN_MS) return;
     ultimoCodigo = codigo;
     ultimoTs = ahora;
-
     if (!codigo) return;
 
     try {
-      const ref = doc(col, codigo);
+      const ref = doc(colEntradas(), codigo);
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
@@ -213,7 +422,6 @@
         return;
       }
 
-      // Marcar como usada
       await updateDoc(ref, {
         usada: true,
         usadaEn: new Date().toISOString()
@@ -225,7 +433,9 @@
     }
   }
 
-  // ----------- UI resultado / historial -----------
+  // ============================================================
+  //  UI resultado / historial
+  // ============================================================
   function mostrarResultado(tipo, icono, titulo, detalle) {
     const el = $("resultado");
     el.className = "result " + tipo;
@@ -234,13 +444,10 @@
       <div>${titulo}</div>
       <div class="detalle">${detalle}</div>
     `;
-    // Vibración (si el navegador lo permite)
     if (navigator.vibrate) {
       navigator.vibrate(tipo === "ok" ? 100 : [60, 60, 60]);
     }
-    // Beep simple con WebAudio
     sonar(tipo);
-    // Historial
     addHistorial(tipo, titulo, detalle);
   }
 
@@ -263,7 +470,9 @@
     `).join("");
   }
 
-  // ----------- Sonido -----------
+  // ============================================================
+  //  SONIDO
+  // ============================================================
   let audioCtx = null;
   function sonar(tipo) {
     try {

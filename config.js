@@ -16,7 +16,11 @@ window.firebaseConfig = {
   measurementId: "G-XJZJ0BELCL"
 };
 
-// Nombre del centro / evento (aparece en cabeceras y PDF)
+// Título que aparece en la cabecera de la web (admin, scan, index).
+window.NOMBRE_HERRAMIENTA = "Generador de Entradas QR";
+
+// Nombre del evento (se usa para el nombre del archivo PDF descargado).
+// Los textos que SALEN dentro del PDF se editan desde el panel admin.
 window.NOMBRE_EVENTO = "Graduación 2026 · IES Aldebarán";
 
 // Emails con permisos de administración. Estos usuarios pueden entrar

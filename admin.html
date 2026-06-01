@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin · Entradas Graduación</title>
+  <title>Admin · Generador de Entradas QR</title>
   <link rel="stylesheet" href="style.css" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0a0f1f" />
 </head>
 <body>
+<div class="bg-gradient"></div>
 
 <!-- ======== LOGIN ======== -->
 <section id="vista-login" class="container" style="padding-top: 3rem;">
@@ -31,128 +32,182 @@
 <!-- ======== PANEL ADMIN ======== -->
 <section id="vista-admin" class="hidden">
   <header class="topbar">
-    <h1 id="evento-titulo">Admin · Entradas</h1>
-    <span><span id="user-email" class="user"></span> · <a href="#" id="btn-logout">Salir</a></span>
+    <div class="topbar-left">
+      <span class="topbar-icon">⚙️</span>
+      <div>
+        <h1 id="evento-titulo">Generador de Entradas QR</h1>
+        <div class="topbar-sub" id="topbar-sub">Panel de administración</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="user-email" class="user"></span>
+      <a href="#" id="btn-logout" class="btn-link">Salir</a>
+    </div>
   </header>
 
   <div class="container">
 
-    <!-- Estadísticas -->
-    <div class="stats">
-      <div class="stat"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
-      <div class="stat"><div class="num" id="stat-disponibles" style="color:#34d399;">0</div><div class="lbl">Disponibles</div></div>
-      <div class="stat"><div class="num" id="stat-usadas" style="color:#f87171;">0</div><div class="lbl">Usadas</div></div>
-    </div>
+    <!-- ====== VISTA 1: Lista de eventos ====== -->
+    <div id="vista-eventos">
 
-    <!-- Datos del evento (editables, sincronizados en Firestore) -->
-    <div class="card" id="card-config">
-      <h2>Datos del evento <span class="muted" style="font-weight:400; font-size:0.85rem;">(aparecen en el PDF)</span></h2>
-
-      <label for="cfg-titulo">Título del PDF</label>
-      <input id="cfg-titulo" type="text" placeholder="ACTO DE GRADUACIÓN 2026" />
-
-      <div class="grid-2">
-        <div>
-          <label for="cfg-instituto">Centro / Instituto</label>
-          <input id="cfg-instituto" type="text" placeholder="I.E.S. Aldebarán" />
+      <div class="card">
+        <h2>🗓 Tus eventos
+          <span class="muted" style="font-weight:400; font-size:0.85rem; margin-left:auto;">
+            (<span id="eventos-count">0</span>)
+          </span>
+        </h2>
+        <div class="toolbar" style="margin-bottom:1rem;">
+          <button id="btn-nuevo-evento" class="btn">➕ Crear nuevo evento</button>
         </div>
-        <div>
-          <label for="cfg-consejeria">Cabecera (Consejería)</label>
-          <input id="cfg-consejeria" type="text" placeholder="Consejería de Educación, Cultura y Deportes" />
+        <div id="lista-eventos" class="event-list"></div>
+        <div id="eventos-empty" class="event-empty hidden">
+          <span class="icono">🗓</span>
+          No hay eventos aún. Crea uno para empezar.
         </div>
       </div>
 
-      <label for="cfg-cursos">Cursos / Módulos</label>
-      <textarea id="cfg-cursos" rows="2" placeholder="2º de Bachillerato y del CFGS en Administración de Sistemas Informáticos en Red"></textarea>
-
-      <div class="grid-2">
-        <div>
-          <label for="cfg-fecha-picker">Fecha del evento</label>
-          <input id="cfg-fecha-picker" type="date" />
-          <input id="cfg-fecha" type="text" placeholder="viernes 15 de mayo de 2026" />
-        </div>
-        <div>
-          <label for="cfg-hora-picker">Hora</label>
-          <input id="cfg-hora-picker" type="time" />
-          <input id="cfg-hora" type="text" placeholder="19:00 horas" />
-        </div>
-      </div>
-
-      <label for="cfg-lugar">Lugar del evento</label>
-      <input id="cfg-lugar" type="text" placeholder="Casa de la Cultura del Ayuntamiento de Fuensalida" />
-
-      <div class="grid-2">
-        <div>
-          <label for="cfg-categoria">Categoría de las entradas</label>
-          <input id="cfg-categoria" type="text" placeholder="AUTORIDADES" />
-        </div>
-        <div>
-          <label for="cfg-valida">Texto "Válida para…"</label>
-          <input id="cfg-valida" type="text" placeholder="(VÁLIDA PARA UNA PERSONA)" />
-        </div>
-      </div>
-
-      <div class="toolbar" style="margin-top:0.5rem;">
-        <button id="btn-guardar-cfg" class="btn btn-success">💾 Guardar datos del evento</button>
-        <button id="btn-toggle-avanzado" class="btn btn-secondary" type="button">⚙ Plantillas avanzadas</button>
-        <span id="cfg-feedback" class="muted" style="align-self:center;"></span>
-      </div>
-
-      <div id="cfg-avanzado" class="hidden" style="margin-top:1rem; border-top:1px solid var(--c-border); padding-top:1rem;">
-        <p class="muted" style="margin-bottom:0.5rem;">
-          Usa los marcadores <code>{CURSOS}</code>, <code>{FECHA}</code>, <code>{HORA}</code>,
-          <code>{LUGAR}</code>, <code>{CENTRO}</code>. Pon <code>**texto**</code> entre dobles
-          asteriscos para que aparezca en <strong>negrita</strong>.
+      <!-- Migración (solo visible si hay datos en entradas/ raíz) -->
+      <div class="card hidden" id="card-migracion">
+        <h2>📦 Datos del sistema anterior</h2>
+        <p class="muted" style="margin-bottom:1rem;">
+          Detectadas <strong id="migracion-count">0</strong> entradas en el formato antiguo.
+          Puedes moverlas a un evento nuevo para seguir gestionándolas con normalidad.
         </p>
-        <label for="cfg-plantilla-invitacion">Plantilla del texto de invitación</label>
-        <textarea id="cfg-plantilla-invitacion" rows="5"></textarea>
-        <label for="cfg-plantilla-stub">Plantilla del lateral (matriz)</label>
-        <input id="cfg-plantilla-stub" type="text" />
+        <button id="btn-migrar" class="btn btn-secondary">📥 Migrar a un evento nuevo</button>
+      </div>
+    </div>
+
+    <!-- ====== VISTA 2: Detalle del evento ====== -->
+    <div id="vista-evento" class="hidden">
+
+      <a href="#" id="btn-volver" class="btn-link" style="display:inline-block; margin-bottom:0.85rem;">← Volver a eventos</a>
+
+      <div class="event-banner" id="event-banner">
+        <div class="event-banner-dot" id="banner-dot"></div>
+        <div class="event-banner-text">
+          <div class="lbl">Evento activo</div>
+          <div class="nom" id="banner-nombre">—</div>
+        </div>
+        <button id="btn-renombrar" class="btn btn-secondary" title="Renombrar evento" style="padding:0.4rem 0.7rem;">✏️</button>
+        <button id="btn-borrar-evento" class="btn btn-danger" title="Borrar evento" style="padding:0.4rem 0.7rem;">🗑</button>
       </div>
 
-      <div style="margin-top:1rem;">
-        <div class="muted" style="font-size:0.8rem; margin-bottom:0.25rem;">Vista previa del texto:</div>
-        <div id="cfg-preview"
-             style="padding:0.85rem; background:#0f172a; border:1px solid var(--c-border); border-radius:8px; font-style:italic; line-height:1.5; white-space:pre-wrap;">
+      <!-- Estadísticas del evento activo -->
+      <div class="stats">
+        <div class="stat"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
+        <div class="stat"><div class="num" id="stat-disponibles" style="color:#34d399;">0</div><div class="lbl">Disponibles</div></div>
+        <div class="stat"><div class="num" id="stat-usadas" style="color:#f87171;">0</div><div class="lbl">Usadas</div></div>
+      </div>
+
+      <!-- Datos del evento -->
+      <div class="card" id="card-config">
+        <h2>📋 Datos del evento <span class="muted" style="font-weight:400; font-size:0.8rem; margin-left:auto;">aparecen en el PDF</span></h2>
+
+        <label for="cfg-titulo">Título del PDF</label>
+        <input id="cfg-titulo" type="text" placeholder="ACTO DE GRADUACIÓN 2026" />
+
+        <div class="grid-2">
+          <div>
+            <label for="cfg-instituto">Centro / Instituto</label>
+            <input id="cfg-instituto" type="text" placeholder="I.E.S. Aldebarán" />
+          </div>
+          <div>
+            <label for="cfg-consejeria">Cabecera (Consejería)</label>
+            <input id="cfg-consejeria" type="text" placeholder="Consejería de Educación, Cultura y Deportes" />
+          </div>
+        </div>
+
+        <label for="cfg-cursos">Cursos / Módulos</label>
+        <textarea id="cfg-cursos" rows="2" placeholder="2º de Bachillerato y del CFGS en Administración de Sistemas Informáticos en Red"></textarea>
+
+        <div class="grid-2">
+          <div>
+            <label for="cfg-fecha-picker">Fecha del evento</label>
+            <input id="cfg-fecha-picker" type="date" />
+            <input id="cfg-fecha" type="text" placeholder="viernes 15 de mayo de 2026" />
+          </div>
+          <div>
+            <label for="cfg-hora-picker">Hora</label>
+            <input id="cfg-hora-picker" type="time" />
+            <input id="cfg-hora" type="text" placeholder="19:00 horas" />
+          </div>
+        </div>
+
+        <label for="cfg-lugar">Lugar del evento</label>
+        <input id="cfg-lugar" type="text" placeholder="Casa de la Cultura del Ayuntamiento de Fuensalida" />
+
+        <div class="grid-2">
+          <div>
+            <label for="cfg-categoria">Categoría de las entradas</label>
+            <input id="cfg-categoria" type="text" placeholder="AUTORIDADES" />
+          </div>
+          <div>
+            <label for="cfg-valida">Texto "Válida para…"</label>
+            <input id="cfg-valida" type="text" placeholder="(VÁLIDA PARA UNA PERSONA)" />
+          </div>
+        </div>
+
+        <div class="toolbar" style="margin-top:0.5rem;">
+          <button id="btn-guardar-cfg" class="btn btn-success">💾 Guardar datos del evento</button>
+          <button id="btn-toggle-avanzado" class="btn btn-secondary" type="button">⚙ Plantillas avanzadas</button>
+          <span id="cfg-feedback" class="muted" style="align-self:center;"></span>
+        </div>
+
+        <div id="cfg-avanzado" class="hidden" style="margin-top:1rem; border-top:1px solid var(--c-border); padding-top:1rem;">
+          <p class="muted" style="margin-bottom:0.5rem;">
+            Usa los marcadores <code>{CURSOS}</code>, <code>{FECHA}</code>, <code>{HORA}</code>,
+            <code>{LUGAR}</code>, <code>{CENTRO}</code>. Pon <code>**texto**</code> entre dobles
+            asteriscos para que aparezca en <strong>negrita</strong>.
+          </p>
+          <label for="cfg-plantilla-invitacion">Plantilla del texto de invitación</label>
+          <textarea id="cfg-plantilla-invitacion" rows="5"></textarea>
+          <label for="cfg-plantilla-stub">Plantilla del lateral (matriz)</label>
+          <input id="cfg-plantilla-stub" type="text" />
+        </div>
+
+        <div style="margin-top:1rem;">
+          <div class="muted" style="font-size:0.8rem; margin-bottom:0.25rem;">Vista previa del texto:</div>
+          <div id="cfg-preview"
+               style="padding:0.85rem; background:#0f172a; border:1px solid var(--c-border); border-radius:8px; font-style:italic; line-height:1.5; white-space:pre-wrap;">
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Crear entradas -->
-    <div class="card">
-      <h2>Crear nuevas entradas</h2>
-      <div class="toolbar">
-        <input id="cantidad" type="number" min="1" max="500" value="10" style="margin-bottom:0;" />
-        <button id="btn-crear" class="btn">Crear N entradas</button>
+      <!-- Crear entradas -->
+      <div class="card">
+        <h2>➕ Crear nuevas entradas</h2>
+        <div class="toolbar">
+          <input id="cantidad" type="number" min="1" max="500" value="10" style="margin-bottom:0;" />
+          <button id="btn-crear" class="btn">Crear N entradas</button>
+        </div>
+        <p class="muted" style="margin-top:0.6rem;">Se generan códigos únicos del tipo <code>ENT-XXXXXX</code>.</p>
       </div>
-      <p class="muted">Se generan códigos únicos del tipo <code>ENT-XXXXXX</code>.</p>
-    </div>
 
-    <!-- Acciones masivas -->
-    <div class="card">
-      <h2>Acciones</h2>
-      <div class="toolbar">
-        <button id="btn-pdf" class="btn btn-success">📄 Descargar PDF imprimible</button>
-        <button id="btn-resetear" class="btn btn-secondary">↺ Marcar todas como NO usadas</button>
-        <button id="btn-borrar-todo" class="btn btn-danger">🗑 Borrar TODAS las entradas</button>
+      <!-- Acciones -->
+      <div class="card">
+        <h2>⚡ Acciones</h2>
+        <div class="toolbar">
+          <button id="btn-pdf" class="btn btn-success">📄 Descargar PDF imprimible</button>
+          <button id="btn-resetear" class="btn btn-secondary">↺ Marcar todas como NO usadas</button>
+          <button id="btn-borrar-todo" class="btn btn-danger">🗑 Borrar TODAS las entradas</button>
+        </div>
       </div>
-    </div>
 
-    <!-- Lista -->
-    <div class="card">
-      <h2>Entradas (<span id="lista-count">0</span>)</h2>
-      <div class="toolbar">
-        <input id="filtro" type="text" placeholder="Filtrar por código..." style="margin-bottom:0;" />
+      <!-- Lista -->
+      <div class="card">
+        <h2>🎟 Entradas <span class="muted" style="font-weight:400; font-size:0.85rem; margin-left:auto;">(<span id="lista-count">0</span>)</span></h2>
+        <div class="toolbar" style="margin-bottom:0.85rem;">
+          <input id="filtro" type="text" placeholder="🔍 Filtrar por código..." style="margin-bottom:0;" />
+        </div>
+        <div id="lista" class="list"></div>
       </div>
-      <div id="lista" class="list"></div>
-    </div>
 
+    </div>
   </div>
 </section>
 
 <!-- ======== Bibliotecas ======== -->
 <script src="config.js"></script>
-<!-- Firebase v10 modular vía import -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
@@ -166,16 +221,16 @@
   const app  = initializeApp(window.firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
-  const col  = collection(db, "entradas");
 
-  // ----------- Helpers UI -----------
   const $ = (id) => document.getElementById(id);
   const show = (el) => el.classList.remove('hidden');
   const hide = (el) => el.classList.add('hidden');
 
-  if (window.NOMBRE_EVENTO) $("evento-titulo").textContent = window.NOMBRE_EVENTO;
+  if (window.NOMBRE_HERRAMIENTA) $("evento-titulo").textContent = window.NOMBRE_HERRAMIENTA;
 
-  // ----------- Login -----------
+  // ============================================================
+  //  AUTENTICACIÓN
+  // ============================================================
   $("form-login").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("login-error").textContent = "";
@@ -194,7 +249,7 @@
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // Comprobar que el email es uno de los admins configurados
+      // Comprobar que el email es uno de los admins
       const adminEmails = (window.ADMIN_EMAILS && window.ADMIN_EMAILS.length
                             ? window.ADMIN_EMAILS
                             : [window.ADMIN_EMAIL])
@@ -202,7 +257,6 @@
                           .map(e => e.toLowerCase());
       const userEmail = (user.email || "").toLowerCase();
       if (adminEmails.length && !adminEmails.includes(userEmail)) {
-        // No es admin: mostrar mensaje y cerrar sesión
         hide($("vista-admin"));
         show($("vista-login"));
         $("login-error").innerHTML =
@@ -214,32 +268,262 @@
       hide($("vista-login"));
       show($("vista-admin"));
       $("user-email").textContent = user.email;
-      iniciarListener();
-      cargarConfig();
+      iniciarListenerEventos();
+      comprobarMigracion();
     } else {
+      // Limpieza al cerrar sesión
+      detenerListenerEventos();
+      detenerListenerEntradas();
+      eventoActivoId = null;
       hide($("vista-admin"));
+      hide($("vista-evento"));
+      show($("vista-eventos"));
       show($("vista-login"));
     }
   });
 
-  // ----------- Generación de códigos -----------
-  function generarCodigo() {
-    // 6 caracteres alfanum sin caracteres ambiguos (0/O, 1/I/L)
+  // ============================================================
+  //  ESTADO
+  // ============================================================
+  let eventoActivoId = null;
+  let entradasCache  = [];
+  let eventosCache   = [];
+  let configEvento   = {};
+  let unsubEventos   = null;
+  let unsubEntradas  = null;
+
+  const refEvento     = () => doc(db, "eventos", eventoActivoId);
+  const colEntradas   = () => collection(db, "eventos", eventoActivoId, "entradas");
+
+  // ============================================================
+  //  VISTA 1 — LISTA DE EVENTOS
+  // ============================================================
+  function iniciarListenerEventos() {
+    detenerListenerEventos();
+    const q = query(collection(db, "eventos"), orderBy("creado", "desc"));
+    unsubEventos = onSnapshot(q, async (snap) => {
+      eventosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      $("eventos-count").textContent = eventosCache.length;
+      await refrescarStatsEventos();
+      pintarListaEventos();
+    });
+  }
+  function detenerListenerEventos() {
+    if (unsubEventos) { unsubEventos(); unsubEventos = null; }
+  }
+
+  async function refrescarStatsEventos() {
+    // Para cada evento, cuenta sus entradas. Se ejecuta en paralelo.
+    await Promise.all(eventosCache.map(async (ev) => {
+      try {
+        const snap = await getDocs(collection(db, "eventos", ev.id, "entradas"));
+        let total = 0, usadas = 0;
+        snap.forEach(d => { total++; if (d.data().usada) usadas++; });
+        ev._total = total;
+        ev._usadas = usadas;
+      } catch (_) { ev._total = 0; ev._usadas = 0; }
+    }));
+  }
+
+  function pintarListaEventos() {
+    const lista = $("lista-eventos");
+    if (!eventosCache.length) {
+      lista.innerHTML = "";
+      show($("eventos-empty"));
+      return;
+    }
+    hide($("eventos-empty"));
+    lista.innerHTML = eventosCache.map(ev => {
+      const total = ev._total || 0;
+      const usadas = ev._usadas || 0;
+      const dispo  = total - usadas;
+      const pct = total ? Math.round((usadas / total) * 100) : 0;
+      const color = ev.color || "#3b82f6";
+      const fecha = ev.fecha || "Sin fecha";
+      const lugar = ev.lugar ? " · " + ev.lugar : "";
+      return `
+        <div class="event-card" data-id="${ev.id}" style="--event-color: ${color}">
+          <div class="event-card-header">
+            <div style="min-width:0;">
+              <div class="event-card-title">${escapeHTML(ev.nombre || "Sin nombre")}</div>
+              <div class="event-card-meta">${escapeHTML(fecha + lugar)}</div>
+            </div>
+            <div class="event-card-actions">
+              <button class="btn btn-danger" data-del="${ev.id}" title="Borrar evento">✕</button>
+            </div>
+          </div>
+          <div class="event-card-stats">
+            <div class="event-card-stat"><span class="val">${total}</span><span class="lbl">Total</span></div>
+            <div class="event-card-stat"><span class="val" style="color:#34d399;">${dispo}</span><span class="lbl">Disponibles</span></div>
+            <div class="event-card-stat"><span class="val" style="color:#f87171;">${usadas}</span><span class="lbl">Validadas</span></div>
+            <div class="event-card-stat" style="margin-left:auto; text-align:right;"><span class="val">${pct}%</span><span class="lbl">Progreso</span></div>
+          </div>
+          <div class="event-card-progress"><div class="bar" style="width:${pct}%"></div></div>
+        </div>
+      `;
+    }).join("");
+
+    // Click en la tarjeta → abrir evento (excepto el botón borrar)
+    lista.querySelectorAll(".event-card").forEach(c => {
+      c.onclick = (e) => {
+        if (e.target.closest("[data-del]")) return;
+        abrirEvento(c.dataset.id);
+      };
+    });
+    lista.querySelectorAll("[data-del]").forEach(b => {
+      b.onclick = async (e) => {
+        e.stopPropagation();
+        await borrarEvento(b.dataset.del);
+      };
+    });
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, ch =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+  }
+
+  // ============================================================
+  //  CREAR / BORRAR / RENOMBRAR EVENTOS
+  // ============================================================
+  const PALETA_EVENTOS = ["#3b82f6","#10b981","#a78bfa","#f59e0b","#ec4899","#06b6d4","#f97316","#84cc16"];
+
+  $("btn-nuevo-evento").addEventListener("click", async () => {
+    const nombre = prompt("Nombre del nuevo evento\n(p. ej. \"Graduación Bachillerato 2026\"):");
+    if (nombre === null) return;
+    const limpio = nombre.trim();
+    if (!limpio) return alert("El nombre no puede estar vacío.");
+
+    const id = generarEventoId();
+    const color = PALETA_EVENTOS[Math.floor(Math.random() * PALETA_EVENTOS.length)];
+    const datos = {
+      nombre: limpio,
+      color,
+      creado: new Date().toISOString(),
+      // Defaults para que la primera carga del formulario tenga sentido
+      titulo:     "ACTO DE GRADUACIÓN " + new Date().getFullYear(),
+      instituto:  "I.E.S. Aldebarán",
+      consejeria: "Consejería de Educación, Cultura y Deportes",
+      cursos:     "",
+      fecha:      "",
+      hora:       "",
+      lugar:      "",
+      categoria:  "AUTORIDADES",
+      valida:     "(VÁLIDA PARA UNA PERSONA)",
+      plantillaInvitacion: DEFAULT_PLANTILLA_INVITACION,
+      plantillaStub:       DEFAULT_PLANTILLA_STUB
+    };
+    try {
+      await setDoc(doc(db, "eventos", id), datos);
+      abrirEvento(id);
+    } catch (err) {
+      alert("Error al crear el evento: " + err.message);
+      console.error(err);
+    }
+  });
+
+  async function borrarEvento(id) {
+    const ev = eventosCache.find(e => e.id === id);
+    const nombre = ev?.nombre || id;
+    const PALABRA = "BORRAR";
+    const resp = prompt(
+      `⚠ Vas a borrar el evento "${nombre}".\n` +
+      `Esto eliminará TAMBIÉN todas sus entradas asociadas.\n\n` +
+      `Esta acción NO se puede deshacer.\n` +
+      `Para confirmar, escribe exactamente:\n\n${PALABRA}`
+    );
+    if (resp === null) return;
+    if (resp.trim() !== PALABRA) {
+      alert("El texto no coincide. Operación cancelada.");
+      return;
+    }
+    try {
+      // Borrar todas las entradas y luego el documento del evento
+      const entSnap = await getDocs(collection(db, "eventos", id, "entradas"));
+      const batch = writeBatch(db);
+      entSnap.forEach(d => batch.delete(d.ref));
+      batch.delete(doc(db, "eventos", id));
+      await batch.commit();
+      // Si era el evento activo, volver a la lista
+      if (eventoActivoId === id) volverListaEventos();
+    } catch (err) {
+      alert("Error al borrar: " + err.message);
+      console.error(err);
+    }
+  }
+
+  $("btn-renombrar").addEventListener("click", async () => {
+    if (!eventoActivoId) return;
+    const ev = eventosCache.find(e => e.id === eventoActivoId);
+    const nuevo = prompt("Nuevo nombre del evento:", ev?.nombre || "");
+    if (!nuevo || !nuevo.trim()) return;
+    try {
+      await updateDoc(refEvento(), { nombre: nuevo.trim() });
+      $("banner-nombre").textContent = nuevo.trim();
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  });
+
+  $("btn-borrar-evento").addEventListener("click", () => {
+    if (eventoActivoId) borrarEvento(eventoActivoId);
+  });
+
+  function generarEventoId() {
     const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-    let c = "ENT-";
+    let c = "EVT-";
     for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
     return c;
   }
 
-  // ----------- Lectura en tiempo real -----------
-  let entradasCache = [];
-  function iniciarListener() {
-    const q = query(col, orderBy("creada", "desc"));
-    onSnapshot(q, (snap) => {
+  // ============================================================
+  //  ABRIR / CERRAR UN EVENTO
+  // ============================================================
+  function abrirEvento(id) {
+    eventoActivoId = id;
+    const ev = eventosCache.find(e => e.id === id);
+    $("banner-nombre").textContent = ev?.nombre || id;
+    const color = ev?.color || "#3b82f6";
+    $("banner-dot").style.background = color;
+    $("banner-dot").style.boxShadow = `0 0 12px ${color}`;
+
+    hide($("vista-eventos"));
+    show($("vista-evento"));
+    $("topbar-sub").textContent = "Detalle del evento";
+    $("filtro").value = "";
+
+    cargarConfigEvento();
+    iniciarListenerEntradas();
+  }
+
+  function volverListaEventos() {
+    detenerListenerEntradas();
+    eventoActivoId = null;
+    entradasCache = [];
+    hide($("vista-evento"));
+    show($("vista-eventos"));
+    $("topbar-sub").textContent = "Panel de administración";
+  }
+
+  $("btn-volver").addEventListener("click", (e) => {
+    e.preventDefault();
+    volverListaEventos();
+  });
+
+  // ============================================================
+  //  LISTENER DE ENTRADAS DEL EVENTO ACTIVO
+  // ============================================================
+  function iniciarListenerEntradas() {
+    detenerListenerEntradas();
+    const q = query(colEntradas(), orderBy("creada", "desc"));
+    unsubEntradas = onSnapshot(q, (snap) => {
       entradasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       pintarLista();
       pintarStats();
     });
+  }
+  function detenerListenerEntradas() {
+    if (unsubEntradas) { unsubEntradas(); unsubEntradas = null; }
   }
 
   function pintarStats() {
@@ -269,12 +553,11 @@
       </div>
     `).join("");
 
-    // Listeners por botón
     $("lista").querySelectorAll("[data-toggle]").forEach(btn => {
       btn.onclick = async () => {
         const id = btn.dataset.toggle;
         const ent = entradasCache.find(e => e.id === id);
-        await updateDoc(doc(col, id), {
+        await updateDoc(doc(colEntradas(), id), {
           usada: !ent.usada,
           usadaEn: !ent.usada ? new Date().toISOString() : null
         });
@@ -282,16 +565,41 @@
     });
     $("lista").querySelectorAll("[data-del]").forEach(btn => {
       btn.onclick = async () => {
-        if (!confirm(`¿Borrar la entrada ${btn.dataset.del}?`)) return;
-        await deleteDoc(doc(col, btn.dataset.del));
+        const id = btn.dataset.del;
+        const respuesta = prompt(
+          `Vas a borrar la entrada ${id}.\n` +
+          `Esta acción no se puede deshacer.\n\n` +
+          `Para confirmar, escribe el código de la entrada exactamente:`
+        );
+        if (respuesta === null) return;
+        if (respuesta.trim().toUpperCase() !== id.toUpperCase()) {
+          alert("El código no coincide. Operación cancelada.");
+          return;
+        }
+        try {
+          await deleteDoc(doc(colEntradas(), id));
+        } catch (err) {
+          alert("Error al borrar: " + err.message);
+          console.error(err);
+        }
       };
     });
   }
 
   $("filtro").addEventListener("input", pintarLista);
 
-  // ----------- Crear N entradas -----------
+  // ============================================================
+  //  CREAR N ENTRADAS
+  // ============================================================
+  function generarCodigo() {
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    let c = "ENT-";
+    for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+  }
+
   $("btn-crear").addEventListener("click", async () => {
+    if (!eventoActivoId) return;
     const n = parseInt($("cantidad").value, 10);
     if (!n || n < 1) return alert("Indica un número válido.");
     if (n > 500) return alert("Máximo 500 por lote.");
@@ -299,7 +607,6 @@
     $("btn-crear").disabled = true;
     $("btn-crear").textContent = "Creando...";
     try {
-      // Evitar colisiones: comprobar contra cache + reintentar si choca
       const existentes = new Set(entradasCache.map(e => e.id));
       const batch = writeBatch(db);
       let creados = 0;
@@ -307,7 +614,7 @@
         const codigo = generarCodigo();
         if (existentes.has(codigo)) continue;
         existentes.add(codigo);
-        batch.set(doc(col, codigo), {
+        batch.set(doc(colEntradas(), codigo), {
           usada: false,
           usadaEn: null,
           creada: new Date().toISOString()
@@ -324,32 +631,50 @@
     }
   });
 
-  // ----------- Borrar todo -----------
+  // ============================================================
+  //  BORRAR TODO / RESETEAR — del evento activo
+  // ============================================================
+  const PALABRA_CONFIRMACION_BORRAR_TODO = "BORRAR TODO";
   $("btn-borrar-todo").addEventListener("click", async () => {
-    if (!confirm(`¿Seguro que quieres borrar TODAS las ${entradasCache.length} entradas? Esta acción no se puede deshacer.`)) return;
-    if (!confirm("Última confirmación. ¿Borrar todas las entradas?")) return;
-    const batch = writeBatch(db);
-    entradasCache.forEach(e => batch.delete(doc(col, e.id)));
-    await batch.commit();
+    if (!eventoActivoId) return;
+    if (entradasCache.length === 0) return alert("No hay entradas que borrar.");
+    const respuesta = prompt(
+      `⚠ ATENCIÓN ⚠\n\n` +
+      `Vas a borrar TODAS las ${entradasCache.length} entradas de este evento. ` +
+      `Esta acción NO se puede deshacer.\n\n` +
+      `Para confirmar, escribe exactamente:\n\n${PALABRA_CONFIRMACION_BORRAR_TODO}`
+    );
+    if (respuesta === null) return;
+    if (respuesta.trim() !== PALABRA_CONFIRMACION_BORRAR_TODO) {
+      alert("El texto no coincide. Operación cancelada.");
+      return;
+    }
+    $("btn-borrar-todo").disabled = true;
+    $("btn-borrar-todo").textContent = "Borrando...";
+    try {
+      const batch = writeBatch(db);
+      entradasCache.forEach(e => batch.delete(doc(colEntradas(), e.id)));
+      await batch.commit();
+    } catch (err) {
+      alert("Error al borrar: " + err.message);
+      console.error(err);
+    } finally {
+      $("btn-borrar-todo").disabled = false;
+      $("btn-borrar-todo").textContent = "🗑 Borrar TODAS las entradas";
+    }
   });
 
-  // ----------- Resetear (todas a no usada) -----------
   $("btn-resetear").addEventListener("click", async () => {
+    if (!eventoActivoId) return;
     if (!confirm("¿Marcar TODAS las entradas como NO usadas? Útil si has hecho una prueba.")) return;
     const batch = writeBatch(db);
-    entradasCache.forEach(e => batch.update(doc(col, e.id), { usada: false, usadaEn: null }));
+    entradasCache.forEach(e => batch.update(doc(colEntradas(), e.id), { usada: false, usadaEn: null }));
     await batch.commit();
   });
 
   // ============================================================
-  //  CONFIG DEL EVENTO (sincronizada en Firestore: config/evento)
-  //  La web tiene un formulario que escribe en este documento, y
-  //  los valores se usan al generar el PDF. Si Firestore no tiene
-  //  nada todavía, se usan los defaults de config.js como fallback.
+  //  CONFIG DEL EVENTO (formulario)
   // ============================================================
-  const configRef = doc(db, "config", "evento");
-  let configEvento = {};
-
   const DEFAULT_PLANTILLA_INVITACION =
     "El **Claustro de Profesores del Centro** y los alumnos de " +
     "**{CURSOS}** tienen el placer de invitarle al acto de Graduación, " +
@@ -357,12 +682,12 @@
     "Agradecemos de antemano su asistencia a este acto tan especial para nuestra comunidad educativa.";
   const DEFAULT_PLANTILLA_STUB = "Graduación de {CURSOS}";
 
-  async function cargarConfig() {
+  async function cargarConfigEvento() {
     try {
-      const snap = await getDoc(configRef);
+      const snap = await getDoc(refEvento());
       configEvento = snap.exists() ? snap.data() : {};
     } catch (err) {
-      console.warn("No se pudo leer config/evento:", err);
+      console.warn("No se pudo leer el evento:", err);
       configEvento = {};
     }
     rellenarForm();
@@ -371,15 +696,15 @@
 
   function rellenarForm() {
     const c = configEvento;
-    $("cfg-titulo").value     = c.titulo     ?? (window.TITULO_PDF        || "");
+    $("cfg-titulo").value     = c.titulo     ?? "";
     $("cfg-instituto").value  = c.instituto  ?? (window.HEADER_CENTRO     || "");
     $("cfg-consejeria").value = c.consejeria ?? (window.HEADER_CONSEJERIA || "");
     $("cfg-cursos").value     = c.cursos     ?? "";
-    $("cfg-fecha").value      = c.fecha      ?? (window.FECHA_EVENTO || "");
-    $("cfg-hora").value       = c.hora       ?? (window.HORA_EVENTO  || "");
-    $("cfg-lugar").value      = c.lugar      ?? (window.LUGAR_EVENTO || "");
-    $("cfg-categoria").value  = c.categoria  ?? (window.CATEGORIA    || "AUTORIDADES");
-    $("cfg-valida").value     = c.valida     ?? (window.VALIDA_PARA  || "(VÁLIDA PARA UNA PERSONA)");
+    $("cfg-fecha").value      = c.fecha      ?? "";
+    $("cfg-hora").value       = c.hora       ?? "";
+    $("cfg-lugar").value      = c.lugar      ?? "";
+    $("cfg-categoria").value  = c.categoria  ?? "AUTORIDADES";
+    $("cfg-valida").value     = c.valida     ?? "(VÁLIDA PARA UNA PERSONA)";
     $("cfg-plantilla-invitacion").value = c.plantillaInvitacion ?? DEFAULT_PLANTILLA_INVITACION;
     $("cfg-plantilla-stub").value       = c.plantillaStub       ?? DEFAULT_PLANTILLA_STUB;
   }
@@ -401,13 +726,14 @@
   }
 
   async function guardarConfig() {
+    if (!eventoActivoId) return;
     const datos = leerForm();
     $("btn-guardar-cfg").disabled = true;
     $("cfg-feedback").textContent = "Guardando…";
     $("cfg-feedback").style.color = "";
     try {
-      await setDoc(configRef, datos);
-      configEvento = datos;
+      await setDoc(refEvento(), datos, { merge: true });
+      configEvento = { ...configEvento, ...datos };
       $("cfg-feedback").textContent = "✓ Guardado";
       $("cfg-feedback").style.color = "#34d399";
       setTimeout(() => { $("cfg-feedback").textContent = ""; }, 2500);
@@ -420,34 +746,25 @@
     }
   }
 
-  // Sustitución de placeholders {CLAVE} en una plantilla
   function aplicarPlantilla(plantilla, vars) {
     return (plantilla || "").replace(/\{(\w+)\}/g, (_, k) => {
       const v = vars[k.toUpperCase()];
       return (v == null || v === "") ? `{${k}}` : v;
     });
   }
-
   function valoresPlantilla() {
     const c = leerForm();
     return {
-      CURSOS: c.cursos,
-      FECHA:  c.fecha,
-      HORA:   c.hora,
-      LUGAR:  c.lugar,
-      CENTRO: c.instituto
+      CURSOS: c.cursos, FECHA: c.fecha, HORA: c.hora,
+      LUGAR: c.lugar, CENTRO: c.instituto
     };
   }
-
   function actualizarPreview() {
     const c = leerForm();
     const cuerpo = aplicarPlantilla(c.plantillaInvitacion, valoresPlantilla());
-    // Quitar **...** sólo para el preview en pantalla
     const limpio = cuerpo.replace(/\*\*(.+?)\*\*/g, (_, t) => t);
     $("cfg-preview").textContent = limpio;
   }
-
-  // Formateador de fecha en español (a partir de YYYY-MM-DD del date picker)
   function formatearFechaES(yyyymmdd) {
     const [y, mo, d] = yyyymmdd.split("-").map(Number);
     if (!y || !mo || !d) return "";
@@ -458,7 +775,6 @@
     return `${dias[dt.getDay()]} ${d} de ${meses[mo - 1]} de ${y}`;
   }
 
-  // --- Bindings del formulario ---
   $("cfg-fecha-picker").addEventListener("change", () => {
     const v = $("cfg-fecha-picker").value;
     if (v) $("cfg-fecha").value = formatearFechaES(v);
@@ -480,34 +796,87 @@
   });
 
   // ============================================================
-  //  GENERAR PDF: una entrada por página A4 HORIZONTAL
-  //  Diseño: matriz lateral + invitación formal + QR.
-  //  Textos editables en config.js.
+  //  MIGRACIÓN DESDE EL SISTEMA ANTIGUO
+  // ============================================================
+  async function comprobarMigracion() {
+    try {
+      const oldEntradas = await getDocs(collection(db, "entradas"));
+      if (oldEntradas.empty) { hide($("card-migracion")); return; }
+      show($("card-migracion"));
+      $("migracion-count").textContent = oldEntradas.size;
+    } catch (err) {
+      hide($("card-migracion"));
+    }
+  }
+
+  $("btn-migrar").addEventListener("click", async () => {
+    if (!confirm("¿Migrar todas las entradas del sistema anterior a un evento nuevo?")) return;
+    $("btn-migrar").disabled = true;
+    $("btn-migrar").textContent = "Migrando…";
+    try {
+      const oldEntradas = await getDocs(collection(db, "entradas"));
+      const oldConfigSnap = await getDoc(doc(db, "config", "evento"));
+      const oldConfig = oldConfigSnap.exists() ? oldConfigSnap.data() : {};
+
+      const id = generarEventoId();
+      const color = PALETA_EVENTOS[0];
+      const nombre = oldConfig.titulo || "Evento migrado";
+      await setDoc(doc(db, "eventos", id), {
+        ...oldConfig,
+        nombre,
+        color,
+        creado: new Date().toISOString()
+      });
+
+      // Mover entradas (set + delete) en lotes de 400 para evitar el límite de 500
+      const docs = oldEntradas.docs;
+      for (let i = 0; i < docs.length; i += 400) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + 400).forEach(d => {
+          batch.set(doc(db, "eventos", id, "entradas", d.id), d.data());
+          batch.delete(d.ref);
+        });
+        await batch.commit();
+      }
+      // Borrar también el config viejo
+      try { await deleteDoc(doc(db, "config", "evento")); } catch (_) {}
+
+      alert(`Migración completada. Evento creado con ${docs.length} entradas.`);
+      hide($("card-migracion"));
+    } catch (err) {
+      alert("Error al migrar: " + err.message);
+      console.error(err);
+    } finally {
+      $("btn-migrar").disabled = false;
+      $("btn-migrar").textContent = "📥 Migrar a un evento nuevo";
+    }
+  });
+
+  // ============================================================
+  //  GENERAR PDF — para el evento activo
   // ============================================================
   $("btn-pdf").addEventListener("click", async () => {
+    if (!eventoActivoId) return;
     if (entradasCache.length === 0) return alert("No hay entradas para imprimir.");
     $("btn-pdf").disabled = true;
     $("btn-pdf").textContent = "Generando PDF...";
 
     try {
-      // Cargar jsPDF y qrcode dinámicamente
       await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
       await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js");
 
       const { jsPDF } = window.jspdf;
-      // A4 horizontal: 297 x 210 mm
       const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
       const W = 297, H = 210;
 
-      // Cargar logos (CLM izquierda + IES derecha). null = se cae con elegancia.
       const [logoCLM, logoIES] = await Promise.all([
         cargarLogoComoDataURL(window.LOGO_CLM_URL),
         cargarLogoComoDataURL(window.LOGO_IES_URL || window.LOGO_URL)
       ]);
       const siglas = window.SIGLAS_IES || "IES";
-      const evento = window.NOMBRE_EVENTO || "Graduación";
+      const ev = eventosCache.find(e => e.id === eventoActivoId);
+      const evento = ev?.nombre || window.NOMBRE_EVENTO || "Graduación";
 
-      // Leer la config del formulario (lo que el usuario ve y editó)
       const c = leerForm();
       const vars = valoresPlantilla();
       const opts = {
@@ -521,9 +890,7 @@
         validaPara:       c.valida
       };
 
-      // Ordenar por código alfabético para PDF predecible
       const ordenadas = [...entradasCache].sort((a, b) => a.id.localeCompare(b.id));
-
       for (let i = 0; i < ordenadas.length; i++) {
         if (i > 0) pdf.addPage();
         await dibujarPaginaEntrada(pdf, ordenadas[i].id, i + 1, opts);
@@ -540,31 +907,23 @@
   });
 
   // ============================================================
-  //  Dibuja una sola entrada (A4 horizontal) según el diseño:
-  //   - Matriz izquierda con texto rotado + Nº
-  //   - Línea de corte discontinua roja
-  //   - Logo arriba-izq, cabecera arriba-der
-  //   - Título centrado
-  //   - Texto de invitación justificado (cursiva + **negrita**)
-  //   - QR centrado abajo
-  //   - "(VÁLIDA PARA UNA PERSONA)" + categoría abajo-izq
-  //   - Nº abajo-derecha
+  //  Dibujo de una entrada (A4 horizontal)
   // ============================================================
   async function dibujarPaginaEntrada(pdf, codigo, numero, opt) {
     const { logoCLM, logoIES, siglas, W, H } = opt;
-    const M = 10;                    // margen exterior
-    const stubW = 55;                // ancho de la matriz lateral
-    const lineX = M + stubW;         // posición x de la línea de corte
+    const M = 10;
+    const stubW = 55;
+    const lineX = M + stubW;
     const numStr = `Nº ${String(numero).padStart(3, '0')}`;
 
-    // -------- LÍNEA DE CORTE DISCONTINUA (vertical, roja) --------
+    // Línea de corte discontinua (vertical, roja)
     try { pdf.setLineDashPattern([2, 1.5], 0); } catch (_) {}
     pdf.setDrawColor(200, 60, 60);
     pdf.setLineWidth(0.5);
     pdf.line(lineX, M, lineX, H - M);
     try { pdf.setLineDashPattern([], 0); } catch (_) {}
 
-    // -------- MATRIZ LATERAL: texto rotado + Nº --------
+    // Matriz lateral: texto rotado + Nº
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
     pdf.setTextColor(80, 80, 80);
@@ -577,17 +936,14 @@
     pdf.setTextColor(30, 30, 30);
     pdf.text(numStr, M + 5, H - M - 5);
 
-    // -------- ZONA PRINCIPAL --------
+    // Zona principal
     const mainX = lineX + 8;
     const mainW = W - mainX - M;
 
-    // Cabecera del PDF:
-    //   IZQUIERDA: escudo de Castilla-La Mancha
-    //   DERECHA:   "Consejería de Educación, ..." + logo del IES debajo
+    // Cabecera: CLM izq + Consejería + logo IES der
     const headerTopY = M + 2;
     const headerH = 26;
 
-    // --- Logo CLM (izquierda) ---
     if (logoCLM && logoCLM.dataURL) {
       const maxH = headerH, maxW = 48;
       const ratio = logoCLM.w / logoCLM.h;
@@ -595,7 +951,6 @@
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
       pdf.addImage(logoCLM.dataURL, "PNG", mainX, headerTopY, dw, dh, undefined, "FAST");
     } else {
-      // Placeholder si no encuentra el archivo logo-clm.png
       pdf.setDrawColor(40, 60, 110);
       pdf.setFillColor(232, 240, 254);
       pdf.circle(mainX + 12, headerTopY + 13, 11, "FD");
@@ -605,7 +960,6 @@
       pdf.text("CLM", mainX + 12, headerTopY + 15, { align: "center" });
     }
 
-    // --- Cabecera derecha: texto Consejería + logo IES debajo ---
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(12);
     pdf.setTextColor(40, 60, 110);
@@ -613,7 +967,6 @@
              W - M, headerTopY + 6, { align: "right" });
 
     if (logoIES && logoIES.dataURL) {
-      // Logo del IES debajo de la línea de Consejería, alineado a la derecha
       const maxH = 16, maxW = 55;
       const ratio = logoIES.w / logoIES.h;
       let dh = maxH, dw = dh * ratio;
@@ -622,7 +975,6 @@
                    W - M - dw, headerTopY + 8, dw, dh,
                    undefined, "FAST");
     } else {
-      // Fallback: si no hay logo del IES, ponemos el nombre como texto
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(12);
       pdf.setTextColor(40, 60, 110);
@@ -635,31 +987,27 @@
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(24);
     pdf.setTextColor(40, 60, 110);
-    pdf.text(opt.titulo || window.TITULO_PDF || "ACTO DE GRADUACIÓN 2026",
+    pdf.text(opt.titulo || window.TITULO_PDF || "ACTO DE GRADUACIÓN",
              mainX + mainW/2, cursorY, { align: "center" });
 
-    // Texto de invitación (cursiva + **negrita**, justificado)
+    // Cuerpo justificado
     const cuerpo = opt.textoInvitacion || window.TEXTO_INVITACION || "";
     const bodyStartY = cursorY + 11;
     const bodyEndY = renderTextoRico(pdf, cuerpo,
                                      mainX + 6, bodyStartY,
-                                     mainW - 12,
-                                     7,    // alto de línea
-                                     13);  // tamaño de fuente
+                                     mainW - 12, 7, 13);
     cursorY = bodyEndY;
 
-    // Zona del pie reservada (donde van etiquetas + Nº)
+    // QR — tamaño adaptativo al hueco libre
     const pieTopY = H - M - 18;
-
-    // QR centrado y dimensionado para llenar el hueco restante
-    const huecoLibre = pieTopY - cursorY - 6;  // 6mm de respiro arriba
+    const huecoLibre = pieTopY - cursorY - 6;
     const qrSize = Math.max(40, Math.min(70, huecoLibre));
     const qrY = cursorY + 4 + (huecoLibre - qrSize) / 2;
     const qrX = mainX + (mainW - qrSize) / 2;
     const qrDataURL = await generarQRDataURL(codigo, 512);
     pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
 
-    // Pie izquierda: (VÁLIDA PARA UNA PERSONA) + categoría
+    // Pie
     pdf.setFont("helvetica", "italic");
     pdf.setFontSize(11);
     pdf.setTextColor(40, 40, 40);
@@ -671,21 +1019,14 @@
     pdf.text(opt.categoria || window.CATEGORIA || "AUTORIDADES",
              mainX + 4, H - M - 3);
 
-    // Pie derecha: Nº secuencial
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(17);
     pdf.setTextColor(30, 30, 30);
     pdf.text(numStr, W - M - 4, H - M - 5, { align: "right" });
   }
 
-  // ============================================================
-  //  Render de texto con cursiva + **negrita-cursiva** y
-  //  justificación por palabra (reparte espacios sobrantes).
-  //  La última línea queda alineada a la izquierda.
-  // ============================================================
   function renderTextoRico(pdf, text, x, y, maxW, lineHeight, fontSize) {
     fontSize = fontSize || 11;
-    // 1) Trocear por marcadores **...**
     const parts = [];
     const re = /\*\*([\s\S]+?)\*\*/g;
     let last = 0, m;
@@ -696,14 +1037,12 @@
     }
     if (last < text.length) parts.push({ text: text.slice(last), bold: false });
 
-    // 2) Tokenizar en palabras + espacios
     const tokens = [];
     for (const p of parts) {
       const segs = p.text.split(/(\s+)/);
       for (const s of segs) if (s) tokens.push({ text: s, bold: p.bold });
     }
 
-    // 3) Wrapping greedy con medición real por token
     pdf.setFontSize(fontSize);
     pdf.setTextColor(40, 40, 40);
     const setEstilo = (bold) => pdf.setFont("helvetica", bold ? "bolditalic" : "italic");
@@ -716,14 +1055,13 @@
       if (curW + w > maxW && cur.length) {
         lines.push(cur);
         cur = []; curW = 0;
-        if (/^\s+$/.test(t.text)) continue;  // espacio inicial: descartar
+        if (/^\s+$/.test(t.text)) continue;
       }
       cur.push({ ...t, w });
       curW += w;
     }
     if (cur.length) lines.push(cur);
 
-    // 4) Renderizar con justificación (excepto la última)
     let cy = y;
     for (let li = 0; li < lines.length; li++) {
       const line = lines[li];
@@ -755,44 +1093,29 @@
     });
   }
 
-  // Carga un logo y lo redimensiona, devolviendo un PNG dataURL.
-  //
-  //   1) intenta vía <img> directo (funciona en file:// y http(s)://)
-  //   2) si el canvas queda "tainted" (mismo origen diferente en Chrome
-  //      con file://), reintenta vía fetch+blob como respaldo.
-  //   3) si nada funciona, log a consola y null (el PDF saldrá sin logo).
   async function cargarLogoComoDataURL(url, maxPx = 600) {
     if (!url) return null;
-
     const cargarConImg = (src) => new Promise((res, rej) => {
       const img = new Image();
       img.onload = () => res(img);
-      img.onerror = (e) => rej(new Error("img onerror"));
+      img.onerror = () => rej(new Error("img onerror"));
       img.src = src;
     });
-
     const aDataURL = (img) => {
       const origW = img.naturalWidth, origH = img.naturalHeight;
       const scale = Math.min(maxPx / origW, maxPx / origH, 1);
       const w = Math.max(1, Math.round(origW * scale));
       const h = Math.max(1, Math.round(origH * scale));
       const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
       return { dataURL: canvas.toDataURL('image/png'), w: origW, h: origH };
     };
-
-    // Intento 1: <img> directo
     try {
       const img = await cargarConImg(url);
       return aDataURL(img);
-    } catch (e1) {
-      console.warn('Logo: fallo cargando vía <img>, pruebo fetch+blob:', url, e1);
-    }
-
-    // Intento 2: fetch + blob URL (por si el navegador bloquea el primero)
+    } catch (_) {}
     try {
       const r = await fetch(url, { cache: "no-store" });
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -801,16 +1124,13 @@
       try {
         const img = await cargarConImg(objURL);
         return aDataURL(img);
-      } finally {
-        URL.revokeObjectURL(objURL);
-      }
-    } catch (e2) {
-      console.warn('Logo: tampoco se pudo cargar vía fetch:', url, e2);
+      } finally { URL.revokeObjectURL(objURL); }
+    } catch (e) {
+      console.warn('No se pudo cargar logo:', url, e);
       return null;
     }
   }
 
-  // Genera un PNG dataURL del QR usando qrcodejs
   function generarQRDataURL(texto, size) {
     return new Promise((resolve) => {
       const div = document.createElement("div");

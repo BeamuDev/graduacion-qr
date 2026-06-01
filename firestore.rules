@@ -1,25 +1,25 @@
 // =============================================================
-//  Reglas de seguridad Firestore
+//  Reglas de seguridad Firestore — Generador de Entradas QR
 //  Pega esto en: Consola Firebase → Firestore Database → Reglas
 // =============================================================
 //
-//  Política:
-//   - Cualquier usuario autenticado (admin o personal de puerta)
-//     puede leer entradas y marcarlas como usadas.
-//   - SOLO el usuario admin (identificado por email) puede crear
-//     o borrar entradas.
-//   - Quien no esté logueado no ve nada.
+//  Estructura multi-evento:
+//    eventos/{eventoId}                       ← metadata + config PDF
+//    eventos/{eventoId}/entradas/{codigo}     ← entradas de ese evento
 //
-//  Para añadir más administradores, ampliar la función esAdmin().
-//  Para cambiar el email admin, edítalo en estas reglas Y en
-//  config.js (window.ADMIN_EMAIL).
+//  Política:
+//   - Cualquier usuario autenticado puede leer la lista de eventos
+//     y las entradas (lo necesita el escáner para validar).
+//   - Solo los admins pueden crear/editar/borrar eventos.
+//   - Cualquier autenticado puede actualizar entradas (marcar usada).
+//   - Solo admins pueden crear y borrar entradas.
 //
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Emails con permisos de admin. Para añadir más, ampliar la lista.
-    // Tiene que coincidir con window.ADMIN_EMAILS en config.js.
+    // Emails con permisos de admin. Tiene que coincidir con
+    // window.ADMIN_EMAILS en config.js.
     function esAdmin() {
       return request.auth != null
         && request.auth.token.email in [
@@ -28,14 +28,24 @@ service cloud.firestore {
            ];
     }
 
-    match /entradas/{codigo} {
-      // Cualquier usuario logueado (admin o personal) puede leer y marcar usada
-      allow read, update: if request.auth != null;
-      // Solo el admin puede crear nuevas entradas o borrarlas
-      allow create, delete: if esAdmin();
+    // Eventos: cualquier autenticado lee, solo admin escribe
+    match /eventos/{eventoId} {
+      allow read:  if request.auth != null;
+      allow write: if esAdmin();
+
+      // Subcolección de entradas dentro de cada evento
+      match /entradas/{codigo} {
+        allow read, update: if request.auth != null;
+        allow create, delete: if esAdmin();
+      }
     }
 
-    // Configuración del evento (datos del PDF). Solo admin lee y escribe.
+    // Compatibilidad con datos antiguos (raíz)
+    // Se mantiene leíble para que el botón de migración pueda copiarlos.
+    match /entradas/{codigo} {
+      allow read, update: if request.auth != null;
+      allow create, delete: if esAdmin();
+    }
     match /config/{docId} {
       allow read, write: if esAdmin();
     }
