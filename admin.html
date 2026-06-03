@@ -866,7 +866,7 @@
       await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js");
 
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
       const W = 297, H = 210;
 
       const [logoCLM, logoIES] = await Promise.all([
@@ -894,7 +894,13 @@
       for (let i = 0; i < ordenadas.length; i++) {
         if (i > 0) pdf.addPage();
         await dibujarPaginaEntrada(pdf, ordenadas[i].id, i + 1, opts);
+        // Cede el hilo cada 20 páginas para no congelar el navegador
+        if (i % 20 === 0) {
+          $("btn-pdf").textContent = `Generando PDF... ${i + 1}/${ordenadas.length}`;
+          await new Promise(r => setTimeout(r, 0));
+        }
       }
+      $("btn-pdf").textContent = "Descargando...";
 
       pdf.save(`entradas_${(evento || 'graduacion').replace(/\s+/g,'_').toLowerCase()}.pdf`);
     } catch (err) {
@@ -915,13 +921,6 @@
     const stubW = 55;
     const lineX = M + stubW;
     const numStr = `Nº ${String(numero).padStart(3, '0')}`;
-
-    // Línea de corte discontinua (vertical, roja)
-    try { pdf.setLineDashPattern([2, 1.5], 0); } catch (_) {}
-    pdf.setDrawColor(200, 60, 60);
-    pdf.setLineWidth(0.5);
-    pdf.line(lineX, M, lineX, H - M);
-    try { pdf.setLineDashPattern([], 0); } catch (_) {}
 
     // Matriz lateral: texto rotado + Nº
     pdf.setFont("helvetica", "bold");
@@ -949,7 +948,7 @@
       const ratio = logoCLM.w / logoCLM.h;
       let dh = maxH, dw = dh * ratio;
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
-      pdf.addImage(logoCLM.dataURL, "PNG", mainX, headerTopY, dw, dh, undefined, "FAST");
+      pdf.addImage(logoCLM.dataURL, "PNG", mainX, headerTopY, dw, dh, "logoCLM", "FAST");
     } else {
       pdf.setDrawColor(40, 60, 110);
       pdf.setFillColor(232, 240, 254);
@@ -973,7 +972,7 @@
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
       pdf.addImage(logoIES.dataURL, "PNG",
                    W - M - dw, headerTopY + 8, dw, dh,
-                   undefined, "FAST");
+                   "logoIES", "FAST");
     } else {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(12);
@@ -1132,22 +1131,23 @@
   }
 
   function generarQRDataURL(texto, size) {
+    const div = document.createElement("div");
+    div.style.display = "none";
+    document.body.appendChild(div);
+    // eslint-disable-next-line no-new
+    new QRCode(div, {
+      text: texto, width: size, height: size,
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    // qrcodejs dibuja el canvas de forma síncrona: se puede leer ya
+    const canvas = div.querySelector("canvas");
+    const img = div.querySelector("img");
+    const dataURL = canvas ? canvas.toDataURL("image/png") : (img ? img.src : null);
+    document.body.removeChild(div);
+    if (dataURL) return Promise.resolve(dataURL);
+    // Fallback por si algún navegador lo hace asíncrono
     return new Promise((resolve) => {
-      const div = document.createElement("div");
-      div.style.display = "none";
-      document.body.appendChild(div);
-      // eslint-disable-next-line no-new
-      new QRCode(div, {
-        text: texto, width: size, height: size,
-        correctLevel: QRCode.CorrectLevel.H
-      });
-      setTimeout(() => {
-        const img = div.querySelector("img");
-        const canvas = div.querySelector("canvas");
-        const dataURL = img ? img.src : canvas.toDataURL("image/png");
-        document.body.removeChild(div);
-        resolve(dataURL);
-      }, 50);
+      setTimeout(() => resolve(generarQRDataURL(texto, size)), 50);
     });
   }
 </script>
