@@ -866,8 +866,9 @@
       await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js");
 
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
-      const W = 297, H = 210;
+      // Tarjeta 15 x 10 cm (horizontal) = 150 x 100 mm
+      const pdf = new jsPDF({ unit: "mm", format: [150, 100], orientation: "landscape", compress: true });
+      const W = 150, H = 100;
 
       const [logoCLM, logoIES] = await Promise.all([
         cargarLogoComoDataURL(window.LOGO_CLM_URL),
@@ -913,38 +914,38 @@
   });
 
   // ============================================================
-  //  Dibujo de una entrada (A4 horizontal)
+  //  Dibujo de una entrada (tarjeta 15 x 10 cm horizontal)
   // ============================================================
   async function dibujarPaginaEntrada(pdf, codigo, numero, opt) {
     const { logoCLM, logoIES, siglas, W, H } = opt;
-    const M = 10;
-    const stubW = 55;
+    const M = 5;
+    const stubW = 20;
     const lineX = M + stubW;
     const numStr = `Nº ${String(numero).padStart(3, '0')}`;
 
     // Matriz lateral: texto rotado + Nº
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
+    pdf.setFontSize(7);
     pdf.setTextColor(80, 80, 80);
     pdf.text(opt.stubTexto || window.STUB_TEXTO || "Graduación",
-             M + stubW/2 - 2, H/2,
-             { angle: 90, align: "center", maxWidth: H - 2*M - 25 });
+             M + stubW/2 - 1, H/2,
+             { angle: 90, align: "center", maxWidth: H - 2*M - 14 });
 
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(15);
+    pdf.setFontSize(9);
     pdf.setTextColor(30, 30, 30);
-    pdf.text(numStr, M + 5, H - M - 5);
+    pdf.text(numStr, M + 3, H - M - 3);
 
     // Zona principal
-    const mainX = lineX + 8;
+    const mainX = lineX + 4;
     const mainW = W - mainX - M;
 
     // Cabecera: CLM izq + Consejería + logo IES der
-    const headerTopY = M + 2;
-    const headerH = 26;
+    const headerTopY = M + 1;
+    const headerH = 13;
 
     if (logoCLM && logoCLM.dataURL) {
-      const maxH = headerH, maxW = 48;
+      const maxH = headerH, maxW = 24;
       const ratio = logoCLM.w / logoCLM.h;
       let dh = maxH, dw = dh * ratio;
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
@@ -952,76 +953,76 @@
     } else {
       pdf.setDrawColor(40, 60, 110);
       pdf.setFillColor(232, 240, 254);
-      pdf.circle(mainX + 12, headerTopY + 13, 11, "FD");
+      pdf.circle(mainX + 6, headerTopY + 6.5, 5.5, "FD");
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(9);
+      pdf.setFontSize(7);
       pdf.setTextColor(40, 60, 110);
-      pdf.text("CLM", mainX + 12, headerTopY + 15, { align: "center" });
+      pdf.text("CLM", mainX + 6, headerTopY + 8, { align: "center" });
     }
 
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(12);
+    pdf.setFontSize(6.5);
     pdf.setTextColor(40, 60, 110);
     pdf.text(opt.headerConsejeria || window.HEADER_CONSEJERIA || "Consejería de Educación, Cultura y Deportes",
-             W - M, headerTopY + 6, { align: "right" });
+             W - M, headerTopY + 3.5, { align: "right", maxWidth: mainW - 26 });
 
     if (logoIES && logoIES.dataURL) {
-      const maxH = 16, maxW = 55;
+      const maxH = 8, maxW = 28;
       const ratio = logoIES.w / logoIES.h;
       let dh = maxH, dw = dh * ratio;
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
       pdf.addImage(logoIES.dataURL, "PNG",
-                   W - M - dw, headerTopY + 8, dw, dh,
+                   W - M - dw, headerTopY + 5, dw, dh,
                    "logoIES", "FAST");
     } else {
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(12);
+      pdf.setFontSize(7);
       pdf.setTextColor(40, 60, 110);
       pdf.text(opt.headerCentro || window.HEADER_CENTRO || "I.E.S. Aldebarán",
-               W - M, headerTopY + 14, { align: "right" });
+               W - M, headerTopY + 8, { align: "right" });
     }
 
     // Título centrado
-    let cursorY = headerTopY + headerH + 10;
+    let cursorY = headerTopY + headerH + 5;
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(24);
+    pdf.setFontSize(13);
     pdf.setTextColor(40, 60, 110);
     pdf.text(opt.titulo || window.TITULO_PDF || "ACTO DE GRADUACIÓN",
              mainX + mainW/2, cursorY, { align: "center" });
 
     // Cuerpo justificado
     const cuerpo = opt.textoInvitacion || window.TEXTO_INVITACION || "";
-    const bodyStartY = cursorY + 11;
+    const bodyStartY = cursorY + 5;
     const bodyEndY = renderTextoRico(pdf, cuerpo,
-                                     mainX + 6, bodyStartY,
-                                     mainW - 12, 7, 13);
+                                     mainX + 3, bodyStartY,
+                                     mainW - 6, 3.6, 7);
     cursorY = bodyEndY;
 
     // QR — tamaño adaptativo al hueco libre
-    const pieTopY = H - M - 18;
-    const huecoLibre = pieTopY - cursorY - 6;
-    const qrSize = Math.max(40, Math.min(70, huecoLibre));
-    const qrY = cursorY + 4 + (huecoLibre - qrSize) / 2;
+    const pieTopY = H - M - 9;
+    const huecoLibre = pieTopY - cursorY - 3;
+    const qrSize = Math.max(18, Math.min(34, huecoLibre));
+    const qrY = cursorY + 2 + (huecoLibre - qrSize) / 2;
     const qrX = mainX + (mainW - qrSize) / 2;
     const qrDataURL = await generarQRDataURL(codigo, 512);
     pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
 
     // Pie
     pdf.setFont("helvetica", "italic");
-    pdf.setFontSize(11);
+    pdf.setFontSize(6.5);
     pdf.setTextColor(40, 40, 40);
     pdf.text(opt.validaPara || window.VALIDA_PARA || "(VÁLIDA PARA UNA PERSONA)",
-             mainX + 4, H - M - 10);
+             mainX + 2, H - M - 5);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(12);
+    pdf.setFontSize(7.5);
     pdf.setTextColor(40, 60, 110);
     pdf.text(opt.categoria || window.CATEGORIA || "AUTORIDADES",
-             mainX + 4, H - M - 3);
+             mainX + 2, H - M - 1.5);
 
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(17);
+    pdf.setFontSize(10);
     pdf.setTextColor(30, 30, 30);
-    pdf.text(numStr, W - M - 4, H - M - 5, { align: "right" });
+    pdf.text(numStr, W - M - 2, H - M - 3, { align: "right" });
   }
 
   function renderTextoRico(pdf, text, x, y, maxW, lineHeight, fontSize) {
