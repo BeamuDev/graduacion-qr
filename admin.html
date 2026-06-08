@@ -186,6 +186,60 @@
       <!-- Acciones -->
       <div class="card">
         <h2>⚡ Acciones</h2>
+        <div class="size-block">
+          <span class="size-label">📐 Tamaño de cada entrada</span>
+          <div class="size-grid" id="size-grid">
+            <div class="size-tile active" data-w="150" data-h="100" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:38px;height:25px;"></div></div>
+              <span class="size-name">Tarjeta</span><span class="size-dim">15×10 cm</span>
+            </div>
+            <div class="size-tile" data-w="100" data-h="150" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:25px;height:38px;"></div></div>
+              <span class="size-name">Postal</span><span class="size-dim">10×15 cm</span>
+            </div>
+            <div class="size-tile" data-w="148" data-h="105" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:38px;height:27px;"></div></div>
+              <span class="size-name">A6</span><span class="size-dim">14,8×10,5 cm</span>
+            </div>
+            <div class="size-tile" data-w="210" data-h="148" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:38px;height:27px;"></div></div>
+              <span class="size-name">A5</span><span class="size-dim">21×14,8 cm</span>
+            </div>
+            <div class="size-tile" data-w="297" data-h="210" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:38px;height:27px;"></div></div>
+              <span class="size-name">A4</span><span class="size-dim">29,7×21 cm</span>
+            </div>
+            <div class="size-tile" data-w="210" data-h="99" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:38px;height:18px;"></div></div>
+              <span class="size-name">Boleto</span><span class="size-dim">21×9,9 cm</span>
+            </div>
+            <div class="size-tile" data-w="85" data-h="55" data-u="mm">
+              <div class="size-shape-box"><div class="size-shape" style="width:38px;height:25px;"></div></div>
+              <span class="size-name">Visita</span><span class="size-dim">8,5×5,5 cm</span>
+            </div>
+            <div class="size-tile" data-custom>
+              <div class="size-shape-box"><div class="size-shape custom">+</div></div>
+              <span class="size-name">Personalizado</span><span class="size-dim">a medida</span>
+            </div>
+          </div>
+          <div class="size-inputs">
+            <div class="fld">
+              <label for="cfg-ancho">Ancho</label>
+              <input id="cfg-ancho" type="number" min="40" max="420" step="1" value="150" />
+            </div>
+            <div class="fld">
+              <label for="cfg-alto">Alto</label>
+              <input id="cfg-alto" type="number" min="40" max="420" step="1" value="100" />
+            </div>
+            <div class="fld">
+              <label for="cfg-unidad">Unidad</label>
+              <select id="cfg-unidad">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+              </select>
+            </div>
+          </div>
+        </div>
         <div class="toolbar">
           <button id="btn-pdf" class="btn btn-success">📄 Descargar PDF imprimible</button>
           <button id="btn-resetear" class="btn btn-secondary">↺ Marcar todas como NO usadas</button>
@@ -855,6 +909,42 @@
   // ============================================================
   //  GENERAR PDF — para el evento activo
   // ============================================================
+  // Presets visuales de tamaño → rellenan ancho/alto/unidad
+  (function initPresetsTamano() {
+    const tiles = Array.from(document.querySelectorAll(".size-tile"));
+    if (!tiles.length) return;
+    const tileCustom = tiles.find(t => t.hasAttribute("data-custom"));
+
+    const activar = (tile) => {
+      tiles.forEach(t => t.classList.remove("active"));
+      if (tile) tile.classList.add("active");
+    };
+
+    tiles.forEach(tile => {
+      tile.addEventListener("click", () => {
+        activar(tile);
+        if (tile.dataset.w) {
+          $("cfg-ancho").value  = tile.dataset.w;
+          $("cfg-alto").value   = tile.dataset.h;
+          $("cfg-unidad").value = tile.dataset.u;
+        } else {
+          $("cfg-ancho").focus();
+        }
+      });
+    });
+
+    // Editar a mano resalta el preset que coincida, o "Personalizado"
+    const sincronizar = () => {
+      const w = $("cfg-ancho").value, h = $("cfg-alto").value, u = $("cfg-unidad").value;
+      const match = tiles.find(t => t.dataset.w === w && t.dataset.h === h && t.dataset.u === u);
+      activar(match || tileCustom);
+    };
+    ["cfg-ancho", "cfg-alto", "cfg-unidad"].forEach(id => {
+      $(id)?.addEventListener("input", sincronizar);
+      $(id)?.addEventListener("change", sincronizar);
+    });
+  })();
+
   $("btn-pdf").addEventListener("click", async () => {
     if (!eventoActivoId) return;
     if (entradasCache.length === 0) return alert("No hay entradas para imprimir.");
@@ -866,9 +956,14 @@
       await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js");
 
       const { jsPDF } = window.jspdf;
-      // Tarjeta 15 x 10 cm (horizontal) = 150 x 100 mm
-      const pdf = new jsPDF({ unit: "mm", format: [150, 100], orientation: "landscape", compress: true });
-      const W = 150, H = 100;
+      // Medidas introducidas por el usuario (ancho × alto)
+      const factor = ($("cfg-unidad")?.value === "cm") ? 10 : 1;   // cm → mm
+      let W = (parseFloat($("cfg-ancho")?.value) || 150) * factor;
+      let H = (parseFloat($("cfg-alto")?.value)  || 100) * factor;
+      // Límites de seguridad (mm)
+      W = Math.min(Math.max(W, 40), 1000);
+      H = Math.min(Math.max(H, 40), 1000);
+      const pdf = new jsPDF({ unit: "mm", format: [W, H], orientation: (W >= H ? "landscape" : "portrait"), compress: true });
 
       const [logoCLM, logoIES] = await Promise.all([
         cargarLogoComoDataURL(window.LOGO_CLM_URL),
@@ -918,34 +1013,37 @@
   // ============================================================
   async function dibujarPaginaEntrada(pdf, codigo, numero, opt) {
     const { logoCLM, logoIES, siglas, W, H } = opt;
-    const M = 5;
-    const stubW = 20;
+    // Factor de escala: el diseño base está pensado para 150 x 100 mm.
+    // Con cualquier otra medida, todo (márgenes, fuentes, QR) escala proporcional.
+    const s = Math.min(W / 150, H / 100);
+    const M = 5 * s;
+    const stubW = 20 * s;
     const lineX = M + stubW;
     const numStr = `Nº ${String(numero).padStart(3, '0')}`;
 
     // Matriz lateral: texto rotado + Nº
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7);
+    pdf.setFontSize(7 * s);
     pdf.setTextColor(80, 80, 80);
     pdf.text(opt.stubTexto || window.STUB_TEXTO || "Graduación",
-             M + stubW/2 - 1, H/2,
-             { angle: 90, align: "center", maxWidth: H - 2*M - 14 });
+             M + stubW/2 - 1*s, H/2,
+             { angle: 90, align: "center", maxWidth: H - 2*M - 14*s });
 
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(9);
+    pdf.setFontSize(9 * s);
     pdf.setTextColor(30, 30, 30);
-    pdf.text(numStr, M + 3, H - M - 3);
+    pdf.text(numStr, M + 3*s, H - M - 3*s);
 
     // Zona principal
-    const mainX = lineX + 4;
+    const mainX = lineX + 4*s;
     const mainW = W - mainX - M;
 
     // Cabecera: CLM izq + Consejería + logo IES der
-    const headerTopY = M + 1;
-    const headerH = 13;
+    const headerTopY = M + 1*s;
+    const headerH = 13 * s;
 
     if (logoCLM && logoCLM.dataURL) {
-      const maxH = headerH, maxW = 24;
+      const maxH = headerH, maxW = 24*s;
       const ratio = logoCLM.w / logoCLM.h;
       let dh = maxH, dw = dh * ratio;
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
@@ -953,76 +1051,76 @@
     } else {
       pdf.setDrawColor(40, 60, 110);
       pdf.setFillColor(232, 240, 254);
-      pdf.circle(mainX + 6, headerTopY + 6.5, 5.5, "FD");
+      pdf.circle(mainX + 6*s, headerTopY + 6.5*s, 5.5*s, "FD");
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
+      pdf.setFontSize(7 * s);
       pdf.setTextColor(40, 60, 110);
-      pdf.text("CLM", mainX + 6, headerTopY + 8, { align: "center" });
+      pdf.text("CLM", mainX + 6*s, headerTopY + 8*s, { align: "center" });
     }
 
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(6.5);
+    pdf.setFontSize(6.5 * s);
     pdf.setTextColor(40, 60, 110);
     pdf.text(opt.headerConsejeria || window.HEADER_CONSEJERIA || "Consejería de Educación, Cultura y Deportes",
-             W - M, headerTopY + 3.5, { align: "right", maxWidth: mainW - 26 });
+             W - M, headerTopY + 3.5*s, { align: "right", maxWidth: mainW - 26*s });
 
     if (logoIES && logoIES.dataURL) {
-      const maxH = 8, maxW = 28;
+      const maxH = 8*s, maxW = 28*s;
       const ratio = logoIES.w / logoIES.h;
       let dh = maxH, dw = dh * ratio;
       if (dw > maxW) { dw = maxW; dh = dw / ratio; }
       pdf.addImage(logoIES.dataURL, "PNG",
-                   W - M - dw, headerTopY + 5, dw, dh,
+                   W - M - dw, headerTopY + 5*s, dw, dh,
                    "logoIES", "FAST");
     } else {
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
+      pdf.setFontSize(7 * s);
       pdf.setTextColor(40, 60, 110);
       pdf.text(opt.headerCentro || window.HEADER_CENTRO || "I.E.S. Aldebarán",
-               W - M, headerTopY + 8, { align: "right" });
+               W - M, headerTopY + 8*s, { align: "right" });
     }
 
     // Título centrado
-    let cursorY = headerTopY + headerH + 5;
+    let cursorY = headerTopY + headerH + 5*s;
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(13);
+    pdf.setFontSize(13 * s);
     pdf.setTextColor(40, 60, 110);
     pdf.text(opt.titulo || window.TITULO_PDF || "ACTO DE GRADUACIÓN",
              mainX + mainW/2, cursorY, { align: "center" });
 
     // Cuerpo justificado
     const cuerpo = opt.textoInvitacion || window.TEXTO_INVITACION || "";
-    const bodyStartY = cursorY + 5;
+    const bodyStartY = cursorY + 5*s;
     const bodyEndY = renderTextoRico(pdf, cuerpo,
-                                     mainX + 3, bodyStartY,
-                                     mainW - 6, 3.6, 7);
+                                     mainX + 3*s, bodyStartY,
+                                     mainW - 6*s, 3.6*s, 7*s);
     cursorY = bodyEndY;
 
     // QR — tamaño adaptativo al hueco libre
-    const pieTopY = H - M - 9;
-    const huecoLibre = pieTopY - cursorY - 3;
-    const qrSize = Math.max(18, Math.min(34, huecoLibre));
-    const qrY = cursorY + 2 + (huecoLibre - qrSize) / 2;
+    const pieTopY = H - M - 9*s;
+    const huecoLibre = pieTopY - cursorY - 3*s;
+    const qrSize = Math.max(18*s, Math.min(34*s, huecoLibre));
+    const qrY = cursorY + 2*s + (huecoLibre - qrSize) / 2;
     const qrX = mainX + (mainW - qrSize) / 2;
     const qrDataURL = await generarQRDataURL(codigo, 512);
     pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
 
     // Pie
     pdf.setFont("helvetica", "italic");
-    pdf.setFontSize(6.5);
+    pdf.setFontSize(6.5 * s);
     pdf.setTextColor(40, 40, 40);
     pdf.text(opt.validaPara || window.VALIDA_PARA || "(VÁLIDA PARA UNA PERSONA)",
-             mainX + 2, H - M - 5);
+             mainX + 2*s, H - M - 5*s);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(7.5 * s);
     pdf.setTextColor(40, 60, 110);
     pdf.text(opt.categoria || window.CATEGORIA || "AUTORIDADES",
-             mainX + 2, H - M - 1.5);
+             mainX + 2*s, H - M - 1.5*s);
 
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(10);
+    pdf.setFontSize(10 * s);
     pdf.setTextColor(30, 30, 30);
-    pdf.text(numStr, W - M - 2, H - M - 3, { align: "right" });
+    pdf.text(numStr, W - M - 2*s, H - M - 3*s, { align: "right" });
   }
 
   function renderTextoRico(pdf, text, x, y, maxW, lineHeight, fontSize) {
