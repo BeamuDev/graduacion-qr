@@ -10,6 +10,13 @@
 <body>
 <div class="bg-gradient"></div>
 
+<!-- ======== POPUP CONFIRMACIÓN ESCANEO ======== -->
+<div id="scan-toast" class="scan-toast">
+  <div class="toast-icon">✓</div>
+  <div class="toast-text">Entrada validada</div>
+  <div class="toast-detalle" id="toast-detalle"></div>
+</div>
+
 <!-- ======== LOGIN ======== -->
 <section id="vista-login" class="container" style="padding-top: 3rem;">
   <div class="card">
@@ -110,6 +117,17 @@
     <div class="card">
       <h2>📜 Últimos escaneos</h2>
       <div id="historial" class="list"></div>
+    </div>
+
+    <div class="card">
+      <h2>🎟 Entradas</h2>
+      <div class="filtros">
+        <button class="filtro-tab active" data-filtro="todas">Todas <span class="cuenta" id="cnt-todas">0</span></button>
+        <button class="filtro-tab" data-filtro="pendientes">Pendientes <span class="cuenta" id="cnt-pendientes">0</span></button>
+        <button class="filtro-tab" data-filtro="escaneadas">Escaneadas <span class="cuenta" id="cnt-escaneadas">0</span></button>
+      </div>
+      <div id="lista-entradas" class="list"></div>
+      <div id="entradas-empty" class="list-empty hidden">No hay entradas en esta categoría.</div>
     </div>
 
   </div>
@@ -330,18 +348,75 @@
   // ============================================================
   //  STATS EN VIVO DEL EVENTO ACTIVO
   // ============================================================
+  let entradasCache = [];
+  let filtroActivo = "todas";
+
   function iniciarListenerEntradas() {
     detenerListenerEntradas();
     unsubEntradas = onSnapshot(query(colEntradas()), (snap) => {
-      let total = 0, usadas = 0;
-      snap.forEach(d => { total++; if (d.data().usada) usadas++; });
+      entradasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      let total = entradasCache.length;
+      let usadas = entradasCache.filter(e => e.usada).length;
       $("stat-total").textContent = total;
       $("stat-usadas").textContent = usadas;
       $("stat-disponibles").textContent = total - usadas;
+      pintarEntradas();
     });
   }
   function detenerListenerEntradas() {
     if (unsubEntradas) { unsubEntradas(); unsubEntradas = null; }
+  }
+
+  document.querySelectorAll(".filtro-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      filtroActivo = tab.dataset.filtro;
+      document.querySelectorAll(".filtro-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      pintarEntradas();
+    });
+  });
+
+  function pintarEntradas() {
+    const usadas = entradasCache.filter(e => e.usada);
+    const pend   = entradasCache.filter(e => !e.usada);
+    $("cnt-todas").textContent = entradasCache.length;
+    $("cnt-pendientes").textContent = pend.length;
+    $("cnt-escaneadas").textContent = usadas.length;
+
+    let items;
+    if (filtroActivo === "pendientes") items = pend;
+    else if (filtroActivo === "escaneadas") items = usadas;
+    else items = entradasCache;
+
+    // Orden: escaneadas por hora desc, pendientes por código
+    items = [...items].sort((a, b) => {
+      if (a.usada && b.usada) return (b.usadaEn || "").localeCompare(a.usadaEn || "");
+      if (a.usada !== b.usada) return a.usada ? 1 : -1;
+      return String(a.id).localeCompare(String(b.id));
+    });
+
+    const cont = $("lista-entradas");
+    if (!items.length) {
+      cont.innerHTML = "";
+      show($("entradas-empty"));
+      return;
+    }
+    hide($("entradas-empty"));
+    cont.innerHTML = items.map(e => {
+      const cuando = e.usada && e.usadaEn
+        ? new Date(e.usadaEn).toLocaleTimeString('es-ES')
+        : "";
+      const badge = e.usada
+        ? `<span class="badge badge-ok">Escaneada</span>`
+        : `<span class="badge badge-pend">Pendiente</span>`;
+      return `
+        <div class="list-item">
+          <span class="codigo">${escapeHTML(e.id)}</span>
+          ${badge}
+          <span class="muted" style="font-size:0.8rem;">${cuando}</span>
+        </div>
+      `;
+    }).join("");
   }
 
   // ============================================================
@@ -449,6 +524,17 @@
     }
     sonar(tipo);
     addHistorial(tipo, titulo, detalle);
+    if (tipo === "ok") mostrarToast(detalle);
+  }
+
+  // Popup verde de confirmación (1 segundo)
+  let toastTimer = null;
+  function mostrarToast(detalle) {
+    const el = $("scan-toast");
+    $("toast-detalle").textContent = detalle || "";
+    el.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 1000);
   }
 
   function mostrarError(msg) {
