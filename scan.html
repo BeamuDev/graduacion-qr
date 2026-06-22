@@ -10,13 +10,6 @@
 <body>
 <div class="bg-gradient"></div>
 
-<!-- ======== POPUP CONFIRMACIÓN ESCANEO ======== -->
-<div id="scan-toast" class="scan-toast">
-  <div class="toast-icon">✓</div>
-  <div class="toast-text">Entrada validada</div>
-  <div class="toast-detalle" id="toast-detalle"></div>
-</div>
-
 <!-- ======== LOGIN ======== -->
 <section id="vista-login" class="container" style="padding-top: 3rem;">
   <div class="card">
@@ -102,7 +95,14 @@
 
     <div class="card">
       <h2>📷 Lector QR</h2>
-      <div id="reader"></div>
+      <div class="reader-wrap">
+        <div id="reader"></div>
+        <div id="cam-flash" class="cam-flash">
+          <div class="cam-flash-icon" id="cam-flash-icon">✓</div>
+          <div class="cam-flash-text" id="cam-flash-text">Entrada validada correctamente</div>
+          <div class="cam-flash-detalle" id="cam-flash-detalle"></div>
+        </div>
+      </div>
       <div class="toolbar" style="margin-top:0.85rem;">
         <button id="btn-toggle" class="btn">⏸ Pausar</button>
         <button id="btn-camara" class="btn btn-secondary">🔄 Cambiar cámara</button>
@@ -122,9 +122,9 @@
     <div class="card">
       <h2>🎟 Entradas</h2>
       <div class="filtros">
-        <button class="filtro-tab active" data-filtro="todas">Todas <span class="cuenta" id="cnt-todas">0</span></button>
-        <button class="filtro-tab" data-filtro="pendientes">Pendientes <span class="cuenta" id="cnt-pendientes">0</span></button>
-        <button class="filtro-tab" data-filtro="escaneadas">Escaneadas <span class="cuenta" id="cnt-escaneadas">0</span></button>
+        <button class="filtro-tab active" data-filtro="todas"><span class="cuenta" id="cnt-todas">0</span><span class="lbl-f">Todas</span></button>
+        <button class="filtro-tab" data-filtro="pendientes"><span class="cuenta" id="cnt-pendientes">0</span><span class="lbl-f">Pendientes</span></button>
+        <button class="filtro-tab" data-filtro="escaneadas"><span class="cuenta" id="cnt-escaneadas">0</span><span class="lbl-f">Escaneadas</span></button>
       </div>
       <div id="lista-entradas" class="list"></div>
       <div id="entradas-empty" class="list-empty hidden">No hay entradas en esta categoría.</div>
@@ -412,8 +412,10 @@
       return `
         <div class="list-item">
           <span class="codigo">${escapeHTML(e.id)}</span>
-          ${badge}
-          <span class="muted" style="font-size:0.8rem;">${cuando}</span>
+          <span class="li-right">
+            ${badge}
+            <span class="li-hora">${cuando}</span>
+          </span>
         </div>
       `;
     }).join("");
@@ -524,17 +526,24 @@
     }
     sonar(tipo);
     addHistorial(tipo, titulo, detalle);
-    if (tipo === "ok") mostrarToast(detalle);
+    mostrarFlash(tipo, detalle);
   }
 
-  // Popup verde de confirmación (1 segundo)
-  let toastTimer = null;
-  function mostrarToast(detalle) {
-    const el = $("scan-toast");
-    $("toast-detalle").textContent = detalle || "";
+  // Capa translúcida sobre la cámara (1 segundo)
+  let flashTimer = null;
+  function mostrarFlash(tipo, detalle) {
+    const el = $("cam-flash");
+    const ok = tipo === "ok";
+    el.classList.remove("ok", "bad");
+    el.classList.add(ok ? "ok" : "bad");
+    $("cam-flash-icon").textContent = ok ? "✓" : "✕";
+    $("cam-flash-text").textContent = ok
+      ? "Entrada validada correctamente"
+      : "Entrada negada";
+    $("cam-flash-detalle").textContent = detalle || "";
     el.classList.add("show");
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), 1000);
+    if (flashTimer) clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => el.classList.remove("show"), 1000);
   }
 
   function mostrarError(msg) {

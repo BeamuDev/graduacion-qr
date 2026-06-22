@@ -830,6 +830,9 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator { opacity: 1; }
   .result .icono { font-size: 3.2rem; }
   .action-icon { width: 44px; height: 44px; font-size: 1.4rem; }
   .toolbar > .btn { flex: 1 1 100%; }
+  .cam-flash .cam-flash-icon { width: 72px; height: 72px; font-size: 2.8rem; }
+  .cam-flash .cam-flash-text { font-size: 1.15rem; }
+  .filtro-tab .cuenta { font-size: 1.2rem; }
 }
 
 @media (max-width: 380px) {
@@ -899,104 +902,137 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator { opacity: 1; }
 .size-inputs input[type="number"] { width: 84px; margin-bottom: 0; }
 
 /* ============================================================
-   Popup de confirmación de escaneo (overlay 1s)
+   Capa de confirmación sobre la cámara (1s, translúcida)
    ============================================================ */
-.scan-toast {
-  position: fixed;
+.reader-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.cam-flash {
+  position: absolute;
   inset: 0;
-  z-index: 1000;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  background: rgba(6,11,24,0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  gap: 0.6rem;
+  padding: 1rem;
+  text-align: center;
+  border-radius: var(--radius);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--t-base);
+  transition: opacity 0.18s ease;
 }
-.scan-toast.show {
+.cam-flash.show {
   opacity: 1;
-  pointer-events: auto;
-  animation: toastPop 0.3s ease;
+  animation: flashPop 0.3s ease;
 }
-.scan-toast .toast-icon {
-  width: 130px;
-  height: 130px;
+.cam-flash.ok  { background: rgba(16,185,129,0.55); }
+.cam-flash.bad { background: rgba(239,68,68,0.6); }
+.cam-flash .cam-flash-icon {
+  width: 86px;
+  height: 86px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 5rem;
+  font-size: 3.4rem;
   color: #fff;
-  background: linear-gradient(135deg, var(--c-success), #059669);
-  box-shadow: 0 0 0 8px rgba(16,185,129,0.25), 0 12px 40px rgba(16,185,129,0.45);
+  background: rgba(255,255,255,0.22);
+  border: 3px solid #fff;
 }
-.scan-toast .toast-text {
-  font-size: 1.5rem;
+.cam-flash .cam-flash-text {
+  font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #34d399;
-  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.45);
+  line-height: 1.2;
 }
-.scan-toast .toast-detalle {
-  font-size: 0.95rem;
-  font-weight: 400;
-  color: var(--c-muted);
+.cam-flash .cam-flash-detalle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
   font-family: ui-monospace, monospace;
-  margin-top: -0.5rem;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
-@keyframes toastPop {
-  0%   { transform: scale(0.8); }
-  60%  { transform: scale(1.05); }
+@keyframes flashPop {
+  0%   { transform: scale(0.85); }
+  60%  { transform: scale(1.04); }
   100% { transform: scale(1); }
 }
 
 /* ============================================================
-   Filtro de entradas (pestañas)
+   Filtro de entradas (pestañas tipo tarjeta)
    ============================================================ */
 .filtros {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   margin-bottom: 1rem;
-  flex-wrap: wrap;
 }
 .filtro-tab {
-  flex: 1 1 auto;
-  min-width: 90px;
-  padding: 0.55rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.6rem 0.4rem;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm);
   background: rgba(15,23,42,0.5);
-  color: var(--c-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all var(--t-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
+  text-align: center;
+  font-family: inherit;
 }
-.filtro-tab:hover {
-  border-color: var(--c-border-h);
-  color: var(--c-text);
+.filtro-tab .cuenta {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--c-text-strong);
 }
+.filtro-tab .lbl-f {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--c-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.filtro-tab:nth-child(2) .cuenta { color: #fbbf24; }
+.filtro-tab:nth-child(3) .cuenta { color: #34d399; }
+.filtro-tab:hover { border-color: var(--c-border-h); }
 .filtro-tab.active {
   background: var(--c-primary-soft);
   border-color: var(--c-primary);
-  color: var(--c-primary-h);
   box-shadow: var(--glow-primary);
 }
-.filtro-tab .cuenta {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  background: rgba(148,163,184,0.18);
-  color: inherit;
+.filtro-tab.active .lbl-f { color: var(--c-primary-h); }
+
+/* Filas de la lista de entradas */
+.list-item .li-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.list-item .li-hora {
+  color: var(--c-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 58px;
+  text-align: right;
+}
+.list-item .codigo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .list-empty {
   text-align: center;
